@@ -11,17 +11,17 @@ public class ExportUtil {
 	
 	public static void export(ArrayList<String> pRawOut, ArrayList<String> pCalcOut) {
 		try {
-			Path path = FileSystems.getDefault().getPath("C:\\Users\\Charles\\Desktop\\", "NEWEST_RAWSTRING_OUT.txt");
+			Path path = FileSystems.getDefault().getPath(System.getProperty("user.home") + "\\Desktop", "NEWEST_RAWSTRING_OUT.txt");
 			Files.deleteIfExists(path);
-			FileWriter fw = new FileWriter("C:\\Users\\Charles\\Desktop\\NEWEST_RAWSTRING_OUT.txt", true);
+			FileWriter fw = new FileWriter(System.getProperty("user.home") + "\\Desktop\\NEWEST_RAWSTRING_OUT.txt", true);
 			for (String gazeInstance : pRawOut) {
 				fw.write(gazeInstance);
 			}
 			fw.flush();
 			fw.close();
-			path = FileSystems.getDefault().getPath("C:\\Users\\Charles\\Desktop\\", "NEWEST_GOODSTUFF_OUT.txt");
+			path = FileSystems.getDefault().getPath(System.getProperty("user.home") + "\\Desktop", "NEWEST_GOODSTUFF_OUT.txt");
 			Files.deleteIfExists(path);
-			fw = new FileWriter("C:\\Users\\Charles\\Desktop\\NEWEST_GOODSTUFF_OUT.txt", true);
+			fw = new FileWriter(System.getProperty("user.home") + "\\Desktop\\NEWEST_GOODSTUFF_OUT.txt", true);
 			for (String goodStuff : pCalcOut) {
 				fw.write(goodStuff);
 			}

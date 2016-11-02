@@ -12,7 +12,7 @@ public class GazeConnection implements IGazeListener {
 	// Connect to TET's server for collection of the actual data
 	public GazeConnection(TETMainController pCont) {
 		mCont = pCont;
-		GazeManager.getInstance().activate(GazeManager.ApiVersion.VERSION_1_0, GazeManager.ClientMode.PUSH);
+		GazeManager.getInstance().activate();
 		GazeManager.getInstance().addGazeListener(this);
 	}
 
