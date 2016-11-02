@@ -1,6 +1,6 @@
 # README #
 
-This is a simple GUI interface for use with TheEyeTribe eye tracking device
+This is a simple GUI for use with TheEyeTribe eye tracking device
 
 ### What is this repository for? ###
 
