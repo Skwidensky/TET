@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 import com.theeyetribe.clientsdk.GazeManager;
 
+import eu.hansolo.fx.heatmap.ColorMapping;
+import eu.hansolo.fx.heatmap.HeatMap;
+import eu.hansolo.fx.heatmap.HeatMapDemo;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -19,7 +22,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import tet.CalculatedGazePacket.CalculatedGazeDataBldr;
 import tet.util.ExportUtil;
@@ -33,7 +38,10 @@ public class TETMainController {
 				@Override
 				public void handle(ActionEvent event) {
 					sLog.info("Updating GUI labels");
-					calculateTheGoodStuff(false);
+					Runnable calculate = () -> {
+						calculateTheGoodStuff(false);
+					};
+					calculate.run();
 				}
 			}));
 
@@ -49,30 +57,48 @@ public class TETMainController {
 	private final double INTERVAL = 33.3333;
 	private final double SAMPLE_RATE = 1 / INTERVAL; // 30Hz
 
-	// Timestamp formatter
-	DecimalFormat mTf = new DecimalFormat("#");
+	private TextArea mTextOutputArea;
+
+	// Generic formatter
+	DecimalFormat mGf = new DecimalFormat("#");
 	// Number formatter
-	final DecimalFormat mDf = new DecimalFormat("#.#####");
+	final DecimalFormat mDf = new DecimalFormat("#.####");
 
 	@FXML
-	HBox mMainHbox;
+	BorderPane mTxtAreaBorderPane;
 	@FXML
-	TextArea mTextOutputArea;
+	StackPane mHeatMapPane;
 	@FXML
 	Button mExportBtn, mStartBtn, mStopBtn, mClearBtn;
 	@FXML
 	Label mTotalTimeLbl, mTotalFixationsLbl, mActualFixationsLbl, mTimeBetweenFixationsLbl, mAvgFixationLenLbl,
 			mPercentTimeFixatedLbl, mBlinksLbl, mFixationsPerMinLbl, mTotalSacDistanceLbl, mTotalSacTimeLbl,
-			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl;
+			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl;
 
 	@FXML
 	private void initialize() {
 		sLog.info("Initializing main area");
 
 		mPeriodicCalculation.setCycleCount(Timeline.INDEFINITE);
+		// limit the TextArea to 30 rows for the UI thread's sake
+		mTextOutputArea = new TextArea() {
+			@Override
+			public void replaceText(int pStart, int pEnd, String pText) {
+				super.replaceText(pStart, pEnd, pText);
+				while (getText().split("\n", -1).length > 30) {
+					int fle = getText().indexOf("\n");
+					super.replaceText(0, fle + 1, "");
+				}
+				positionCaret(getText().length());
+			}
+		};
+		mTextOutputArea.setEditable(false);
+		mTxtAreaBorderPane.setCenter(mTextOutputArea);
+		
+		// TODO: figure out HeatMap
+		mHeatMapPane.getChildren().add(new HeatMap(400,400));
 
-		// Keep the text area scrolling with new data
-		mTextOutputArea.textProperty().addListener(change -> mTextOutputArea.setScrollTop(Double.MAX_VALUE));
+		// add column labels
 		addRawGazeData(RAW_COLUMNS + System.lineSeparator());
 		mTheGoodStuff.add(TGS_COLUMNS + System.lineSeparator());
 
@@ -100,7 +126,8 @@ public class TETMainController {
 	/* Add a row of >Raw< Gaze Data to the list */
 	private void addRawGazeData(String pGazeData) {
 		mRawStringOutput.add(pGazeData);
-		Platform.runLater(() -> mTextOutputArea.appendText(pGazeData));
+		String easierToReadRaw = pGazeData.replaceAll(",", " --- ");
+		Platform.runLater(() -> mTextOutputArea.appendText(easierToReadRaw));
 	}
 
 	/* Add >Calculated< Gaze Data to the list */
@@ -129,17 +156,19 @@ public class TETMainController {
 
 		double totalTime = (copyOfRawFigures.get(copyOfRawFigures.size() - 1)[0] - copyOfRawFigures.get(0)[0]);
 		double totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0, fixationLength = 0,
-				totalSaccadeTime = 0, totalSaccadeDistance = 0, avgSaccadeSpeed = 0, fidgetLp = 0, fidgetRp = 0,
-				fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0, rP2 = 0;		
-		
-		int index = 0;		
+				totalSaccadeTime = 0, totalSaccadeDistance = 0, totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0,
+				fidgetLp = 0, fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0,
+				rP2 = 0;
+
+		int index = 0;
 		int blinks = countBlinks(copyOfFixationsVSaccades, copyOfRawFigures);
 		int totalCycles = copyOfRawFigures.size();
-		
+
 		for (double[] dArray : copyOfRawFigures) {
+			double distance = 0;
 			if (index < copyOfRawFigures.size() && index < copyOfFixationsVSaccades.size()) {
 				boolean fixated = copyOfFixationsVSaccades.get(index);
-				// Keeps a tally of the times between fixations
+				// Keeps track of all the times between fixations
 				if (!fixated) {
 					timesBetweenFixations += SAMPLE_RATE;
 					if (fixationLength > 0) {
@@ -161,13 +190,18 @@ public class TETMainController {
 				lP2 = dArray[3];
 				rP2 = dArray[4];
 
+				// Can't calculate distance from the first index
+				if (index != 0) {
+					// Gaze (x1,y1) (x2,y2) delta
+					distance = Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+				}
 				if (fixated) {
 					totalFixations++;
+					// Smooth tracking distance
+					totalSmoothTrackDistance += distance;
 				} else {
-					// Can't calculate distance from the first index
-					if (index != 0 && !fixated) {
-						// If I'm not fixated, how far did my eyes move?
-						double distance = Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+					// Saccadic movements
+					if (!fixated) {
 						totalSaccadeDistance += distance;
 					}
 				}
@@ -206,7 +240,7 @@ public class TETMainController {
 			avgFixationLength = (avgFixationLength / fixationLengths.size());
 		}
 
-		int actualNumFixations = findActualNumberOfFixations();
+		int actualNumFixations = findActualNumberOfFixations(copyOfFixationsVSaccades);
 		FPM = (actualNumFixations / (totalTime / 1000)) * 60;
 
 		percentTimeFixated = (totalFixations * INTERVAL) / totalTime;
@@ -244,12 +278,13 @@ public class TETMainController {
 		mLFidgetLbl.setText(mDf.format(fidgetLp));
 		mRFidgetLbl.setText(mDf.format(fidgetRp));
 		mBFidgetLbl.setText(mDf.format(fidgetAvg));
+		mSmoothTrkDistLbl.setText(mDf.format(totalSmoothTrackDistance));
 	}
 
 	// I count 3 "true" fixation booleans in a row a verified fixation
-	private Integer findActualNumberOfFixations() {
+	private Integer findActualNumberOfFixations(ArrayList<Boolean> pList) {
 		int actualNumberOfFixations = 0, count = 0;
-		for (Boolean b : mFixationsVsaccades) {
+		for (Boolean b : pList) {
 			if (count == 3) {
 				actualNumberOfFixations++;
 			}
@@ -265,9 +300,8 @@ public class TETMainController {
 
 	/*
 	 * Count and remove "blink" instances from rawFigures I count series of
-	 * empty data of length 2-5 as blink instances. Anything less could simply
-	 * be dropped data, and anything more is likely to be caused by me shifting
-	 * out of the vision zone slightly
+	 * empty data of length 1-5 as blink instances. Anything more is likely to
+	 * be caused by me shifting out of the vision zone slightly
 	 */
 	private Integer countBlinks(ArrayList<Boolean> pFixVSac, ArrayList<double[]> pRawList) {
 		int blinks = 0, series = 0, index = 0;
@@ -340,9 +374,11 @@ public class TETMainController {
 	 * Write the currently stored data to file
 	 */
 	public void export() {
-		calculateTheGoodStuff(true);
-		ExportUtil.export(mRawStringOutput, mTheGoodStuff);
-		resetEverything();
+		if (mRawStringOutput.size() > 1) {
+			calculateTheGoodStuff(true);
+			ExportUtil.export(mRawStringOutput, mTheGoodStuff);
+			resetEverything();
+		}
 	}
 
 	/**
@@ -363,7 +399,8 @@ public class TETMainController {
 	 * Give the controller a fresh packet of raw TET data
 	 * 
 	 * @param pPacket
-	 *            -- contains all gatherable parameters from TET device
+	 *            -- contains all (important) gatherable parameters from TET
+	 *            device
 	 */
 	public void update(RawGazePacket pPacket) {
 		double timestamp = (double) pPacket.getTimestamp();
@@ -375,12 +412,11 @@ public class TETMainController {
 		// With what we'll calculate
 		double[] rawFigures = { timestamp, gX, gY, pL, pR };
 		addRawFigures(rawFigures);
-		// Don't add fixation boolean if these aren't valid
 		mFixationsVsaccades.add(fixed);
 
 		// What gets pushed out to file
-		String rawGazing = mTf.format(timestamp) + "," + gX + "," + gY + "," + pL + "," + pR + "," + fixed
-				+ System.lineSeparator();
+		String rawGazing = mGf.format(timestamp) + "," + mGf.format(gX) + "," + mGf.format(gY) + "," + mGf.format(pL)
+				+ "," + mGf.format(pR) + "," + fixed + System.lineSeparator();
 		addRawGazeData(rawGazing);
 	}
 }

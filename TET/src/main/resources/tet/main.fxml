@@ -7,11 +7,7 @@
 	fx:controller="tet.TETMainController">
 	<HBox>
 		<children>
-			<BorderPane prefHeight="400.0" prefWidth="400.0">
-				<center>
-					<TextArea fx:id="mTextOutputArea" editable="false" prefHeight="400.0" prefWidth="400.0"
-						BorderPane.alignment="CENTER" />
-				</center>
+			<BorderPane fx:id="mTxtAreaBorderPane" prefHeight="400.0" prefWidth="400.0">
 				<bottom>
 					<HBox alignment="CENTER" prefHeight="19.0" prefWidth="200.0" spacing="5.0" BorderPane.alignment="CENTER">
 						<children>
@@ -24,77 +20,87 @@
 				</bottom>
 			</BorderPane>
 		</children>
-		<GridPane>
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="off-label">
-				<Label text="Total time(millis): " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="off-label">
-				<Label fx:id="mTotalTimeLbl" />
-			</Pane>
+		<VBox>
+			<GridPane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="off-label">
+					<Label text="Total time(millis): " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="off-label">
+					<Label fx:id="mTotalTimeLbl" />
+				</Pane>
 
-			<Label text="Total fixations(boolean): " GridPane.columnIndex="0" GridPane.rowIndex="1" />
-			<Label fx:id="mTotalFixationsLbl" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+				<Label text="Total fixations(boolean): " GridPane.columnIndex="0" GridPane.rowIndex="1" />
+				<Label fx:id="mTotalFixationsLbl" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="off-label">
-				<Label text="Number of actual fixations: " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="off-label">
-				<Label fx:id="mActualFixationsLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="off-label">
+					<Label text="Number of actual fixations: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="off-label">
+					<Label fx:id="mActualFixationsLbl" />
+				</Pane>
 
-			<Label text="Average time between fixations: " GridPane.columnIndex="0" GridPane.rowIndex="3" />
-			<Label fx:id="mTimeBetweenFixationsLbl" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+				<Label text="Average time between fixations: " GridPane.columnIndex="0" GridPane.rowIndex="3" />
+				<Label fx:id="mTimeBetweenFixationsLbl" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="off-label">
-				<Label text="Average length of a fixation: " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="4" styleClass="off-label">
-				<Label fx:id="mAvgFixationLenLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="off-label">
+					<Label text="Average length of a fixation: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="4" styleClass="off-label">
+					<Label fx:id="mAvgFixationLenLbl" />
+				</Pane>
 
-			<Label text="Percent time fixated: " GridPane.columnIndex="0" GridPane.rowIndex="5" />
-			<Label fx:id="mPercentTimeFixatedLbl" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+				<Label text="Percent time fixated: " GridPane.columnIndex="0" GridPane.rowIndex="5" />
+				<Label fx:id="mPercentTimeFixatedLbl" GridPane.columnIndex="1" GridPane.rowIndex="5" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="6" styleClass="off-label">
-				<Label text="Blinks: " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="6" styleClass="off-label">
-				<Label fx:id="mBlinksLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="6" styleClass="off-label">
+					<Label text="Blinks: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="6" styleClass="off-label">
+					<Label fx:id="mBlinksLbl" />
+				</Pane>
 
-			<Label text="FPM: " GridPane.columnIndex="0" GridPane.rowIndex="7" />
-			<Label fx:id="mFixationsPerMinLbl" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+				<Label text="FPM: " GridPane.columnIndex="0" GridPane.rowIndex="7" />
+				<Label fx:id="mFixationsPerMinLbl" GridPane.columnIndex="1" GridPane.rowIndex="7" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="8" styleClass="off-label">
-				<Label text="Total saccade distance: " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="8" styleClass="off-label">
-				<Label fx:id="mTotalSacDistanceLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="8" styleClass="off-label">
+					<Label text="Total saccade distance: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="8" styleClass="off-label">
+					<Label fx:id="mTotalSacDistanceLbl" />
+				</Pane>
 
-			<Label text="Total saccade time: " GridPane.columnIndex="0" GridPane.rowIndex="9" />
-			<Label fx:id="mTotalSacTimeLbl" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+				<Label text="Total saccade time: " GridPane.columnIndex="0" GridPane.rowIndex="9" />
+				<Label fx:id="mTotalSacTimeLbl" GridPane.columnIndex="1" GridPane.rowIndex="9" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="10" styleClass="off-label">
-				<Label text="Average saccade speed(pixels/millisecond): " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="10" styleClass="off-label">
-				<Label fx:id="mAvgSacSpeedLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="10" styleClass="off-label">
+					<Label text="Average saccade speed(pixels/millisecond): " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="10" styleClass="off-label">
+					<Label fx:id="mAvgSacSpeedLbl" />
+				</Pane>
 
-			<Label text="Average fidget delta (left pupil): " GridPane.columnIndex="0" GridPane.rowIndex="11" />
-			<Label fx:id="mLFidgetLbl" GridPane.columnIndex="1" GridPane.rowIndex="11" />
+				<Label text="Average fidget delta (left pupil): " GridPane.columnIndex="0" GridPane.rowIndex="11" />
+				<Label fx:id="mLFidgetLbl" GridPane.columnIndex="1" GridPane.rowIndex="11" />
 
-			<Pane GridPane.columnIndex="0" GridPane.rowIndex="12" styleClass="off-label">
-				<Label text="Average fidget delta (right pupil): " />
-			</Pane>
-			<Pane GridPane.columnIndex="1" GridPane.rowIndex="12" styleClass="off-label">
-				<Label fx:id="mRFidgetLbl" />
-			</Pane>
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="12" styleClass="off-label">
+					<Label text="Average fidget delta (right pupil): " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="12" styleClass="off-label">
+					<Label fx:id="mRFidgetLbl" />
+				</Pane>
 
-			<Label text="Average fidget delta (both pupils): " GridPane.columnIndex="0" GridPane.rowIndex="13" />
-			<Label fx:id="mBFidgetLbl" GridPane.columnIndex="1" GridPane.rowIndex="13" />
-		</GridPane>
+				<Label text="Average fidget delta (both pupils): " GridPane.columnIndex="0" GridPane.rowIndex="13" />
+				<Label fx:id="mBFidgetLbl" GridPane.columnIndex="1" GridPane.rowIndex="13" />
+
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="14" styleClass="off-label">
+					<Label text="Smooth tracking distance: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="14" styleClass="off-label">
+					<Label fx:id="mSmoothTrkDistLbl" />
+				</Pane>
+			</GridPane>
+			<StackPane fx:id="mHeatMapPane" />
+		</VBox>
 	</HBox>
 
 

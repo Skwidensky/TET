@@ -27,8 +27,8 @@ public class TETAppMain extends Application {
 		
 		sLog.info("Starting TET-FX application");
 		
-		double width = 800;
-		double height = 475;
+		double width = 750;
+		double height = 550;
 		mRoot.setPrefWidth(width);
 		mRoot.setPrefHeight(height);
 		mRoot.setMinWidth(width);
