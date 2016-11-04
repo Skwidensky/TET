@@ -1,8 +1,11 @@
 package tet;
 
 import java.util.Objects;
+import java.util.Random;
 
 public class RawGazePacket {
+	
+	public static RawGazePacket EMPTY_PACKET = new RawGazeDataBldr().build();
 		
 	private final long mTimestamp;
 	private final double mGazeX;
@@ -12,6 +15,7 @@ public class RawGazePacket {
 	private final boolean mIsFixated;
 	
 	public static final class RawGazeDataBldr {
+		private final Random mRand = new Random();
 		private long mTimestamp = 0;
 		private double mGazeX = 0;
 		private double mGazeY = 0;
@@ -49,9 +53,19 @@ public class RawGazePacket {
 			return this;
 		}		
 		
+		public RawGazeDataBldr random() {
+			mTimestamp = mRand.nextLong();
+			mGazeX = mRand.nextInt(1000);
+			mGazeY = mRand.nextInt(1000);
+			mPupilL = mRand.nextInt(1000);
+			mPupilR = mRand.nextInt(1000);
+			mIsFixated = mRand.nextBoolean();
+			return this;
+		}
+		
 		public RawGazePacket build() {
 			return new RawGazePacket(this);
-		}
+		}		
 	}
 	
 	private RawGazePacket(RawGazeDataBldr pBldr) {

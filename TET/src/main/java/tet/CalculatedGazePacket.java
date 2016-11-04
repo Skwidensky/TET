@@ -4,6 +4,9 @@ import java.util.Objects;
 
 public class CalculatedGazePacket {
 	
+	public static CalculatedGazePacket EMPTY_PACKET = new CalculatedGazeDataBldr().build();
+	
+	private final double mFirstTime;
 	private final double mTotalTime;
 	private final double mFixationsPerMin;
 	private final double mTimeBetweenFixations;
@@ -18,6 +21,7 @@ public class CalculatedGazePacket {
 	
 	public static final class CalculatedGazeDataBldr {
 		
+		private double mFirstTime = 0;
 		private double mTotalTime = 0;
 		private double mFixationsPerMin = 0;
 		private double mTimeBetweenFixations = 0;
@@ -29,6 +33,26 @@ public class CalculatedGazePacket {
 		private double mAvgFidget = 0;
 		private int mTotalFixations = 0;
 		private int mBlinks = 0;
+		
+		public CalculatedGazeDataBldr from(CalculatedGazePacket pCgp) {
+			mTotalTime = Objects.requireNonNull(pCgp.getTotalTime());
+			mFixationsPerMin = Objects.requireNonNull(pCgp.getFixationsPerMin());
+			mTimeBetweenFixations = Objects.requireNonNull(pCgp.getTimeBetweenFixations());
+			mFixationLength = Objects.requireNonNull(pCgp.getFixationLength());
+			mPercentTimeFixated = Objects.requireNonNull(pCgp.getPercentTimeFixated());
+			mAvgSaccadeSpeed = Objects.requireNonNull(pCgp.mAvgSaccadeSpeed);
+			mFidgetL = Objects.requireNonNull(pCgp.getFidgetL());
+			mFidgetR = Objects.requireNonNull(pCgp.getFidgetR());
+			mAvgFidget = Objects.requireNonNull(pCgp.getAvgFidget());
+			mTotalFixations = Objects.requireNonNull(pCgp.getTotalFixations());
+			mBlinks = Objects.requireNonNull(pCgp.getBlinks());
+			return this;
+		}
+		
+		public CalculatedGazeDataBldr withFirstTime(double pFirstTime) {
+			mFirstTime = Objects.requireNonNull(pFirstTime);
+			return this;
+		}
 		
 		public CalculatedGazeDataBldr withTotalTime(double pTotalTime) {
 			mTotalTime = Objects.requireNonNull(pTotalTime);
@@ -92,6 +116,7 @@ public class CalculatedGazePacket {
 	}
 	
 	private CalculatedGazePacket(CalculatedGazeDataBldr pBldr) {
+		mFirstTime = pBldr.mFirstTime;
 		mTotalTime = pBldr.mTotalTime;
 		mFixationsPerMin = pBldr.mFixationsPerMin;
 		mTimeBetweenFixations = pBldr.mTimeBetweenFixations;
@@ -103,6 +128,10 @@ public class CalculatedGazePacket {
 		mAvgFidget = pBldr.mAvgFidget;
 		mTotalFixations = pBldr.mTotalFixations;
 		mBlinks = pBldr.mBlinks;
+	}
+	
+	public double getFirstTime() {
+		return mFirstTime;
 	}
 
 	public double getTotalTime() {

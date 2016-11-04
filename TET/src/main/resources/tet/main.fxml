@@ -15,6 +15,7 @@
 							<Button fx:id="mStartBtn" text="Start" />
 							<Button fx:id="mStopBtn" disable="true" text="Stop" />
 							<Button fx:id="mClearBtn" onAction="#resetEverything" text="Clear" />
+							<Button fx:id="mTestBtn" onAction="#test" text="Test" />
 						</children>
 					</HBox>
 				</bottom>
@@ -98,8 +99,11 @@
 				<Pane GridPane.columnIndex="1" GridPane.rowIndex="14" styleClass="off-label">
 					<Label fx:id="mSmoothTrkDistLbl" />
 				</Pane>
+
+				<Label text="Concentration Quotient (CT): " GridPane.columnIndex="0" GridPane.rowIndex="15" />
+				<Label fx:id="mConcQuotient" GridPane.columnIndex="1" GridPane.rowIndex="15" />
 			</GridPane>
-			<StackPane fx:id="mHeatMapPane" />
+			<StackPane fx:id="mHeatMapPane" minWidth="300" minHeight="300" />
 		</VBox>
 	</HBox>
 

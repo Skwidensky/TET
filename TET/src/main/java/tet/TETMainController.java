@@ -3,6 +3,7 @@ package tet;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +11,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 import com.theeyetribe.clientsdk.GazeManager;
 
-import eu.hansolo.fx.heatmap.ColorMapping;
-import eu.hansolo.fx.heatmap.HeatMap;
-import eu.hansolo.fx.heatmap.HeatMapDemo;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -23,11 +21,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import tet.CalculatedGazePacket.CalculatedGazeDataBldr;
+import tet.RawGazePacket.RawGazeDataBldr;
 import tet.util.ExportUtil;
+import tet.util.HeatMapProvider;
 
 public class TETMainController {
 	private static final Logger sLog = LoggerFactory.getLogger(TETMainController.class);
@@ -46,10 +45,10 @@ public class TETMainController {
 			}));
 
 	// Data structures
-	private volatile ArrayList<double[]> mRawFigures = new ArrayList<>();
-	private volatile ArrayList<Boolean> mFixationsVsaccades = new ArrayList<>();
-	private volatile ArrayList<String> mRawStringOutput = new ArrayList<>();
-	private volatile ArrayList<String> mTheGoodStuff = new ArrayList<>();
+	private ArrayList<RawGazePacket> mRawFigures = new ArrayList<>();
+	private ArrayList<Boolean> mFixationsVsaccades = new ArrayList<>();
+	private ArrayList<String> mRawStringOutput = new ArrayList<>();
+	private ArrayList<String> mTheGoodStuff = new ArrayList<>();	
 
 	// Output and calculation
 	private final String RAW_COLUMNS = "timestamp,smoothX,smoothY,pupil_L,pupil_R,fixated";
@@ -69,16 +68,15 @@ public class TETMainController {
 	@FXML
 	StackPane mHeatMapPane;
 	@FXML
-	Button mExportBtn, mStartBtn, mStopBtn, mClearBtn;
-	@FXML
+	Button mExportBtn, mStartBtn, mStopBtn, mClearBtn, mTestBtn;
+	@FXML // rolling output Labels
 	Label mTotalTimeLbl, mTotalFixationsLbl, mActualFixationsLbl, mTimeBetweenFixationsLbl, mAvgFixationLenLbl,
 			mPercentTimeFixatedLbl, mBlinksLbl, mFixationsPerMinLbl, mTotalSacDistanceLbl, mTotalSacTimeLbl,
-			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl;
+			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient;
 
 	@FXML
 	private void initialize() {
 		sLog.info("Initializing main area");
-
 		mPeriodicCalculation.setCycleCount(Timeline.INDEFINITE);
 		// limit the TextArea to 30 rows for the UI thread's sake
 		mTextOutputArea = new TextArea() {
@@ -95,8 +93,11 @@ public class TETMainController {
 		mTextOutputArea.setEditable(false);
 		mTxtAreaBorderPane.setCenter(mTextOutputArea);
 		
+		// add the HeatMap
+		HeatMapProvider hmp = new HeatMapProvider();
+		mHeatMapPane.getChildren().add(hmp.getHeatMapPane());
+
 		// TODO: figure out HeatMap
-		mHeatMapPane.getChildren().add(new HeatMap(400,400));
 
 		// add column labels
 		addRawGazeData(RAW_COLUMNS + System.lineSeparator());
@@ -119,7 +120,6 @@ public class TETMainController {
 		mClearBtn.disableProperty().bind(mStartBtn.disabledProperty());
 
 		// TODO: Latency button
-		// TODO: Concentration quotient
 
 	}
 
@@ -149,24 +149,25 @@ public class TETMainController {
 		// save off these two member structures -- they might still be updating
 		// during these calculations
 		ArrayList<Boolean> copyOfFixationsVSaccades = new ArrayList<>(mFixationsVsaccades);
-		ArrayList<double[]> copyOfRawFigures = new ArrayList<>(mRawFigures);
+		ArrayList<RawGazePacket> copyOfRgps = new ArrayList<>(mRawFigures);		
 
 		ArrayList<Double> betweenFixations = new ArrayList<>();
 		ArrayList<Double> fixationLengths = new ArrayList<>();
 
-		double totalTime = (copyOfRawFigures.get(copyOfRawFigures.size() - 1)[0] - copyOfRawFigures.get(0)[0]);
+		double totalTime = (copyOfRgps.get(copyOfRgps.size() - 1).getTimestamp() - mRawFigures.get(0).getTimestamp());
 		double totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0, fixationLength = 0,
 				totalSaccadeTime = 0, totalSaccadeDistance = 0, totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0,
 				fidgetLp = 0, fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0,
 				rP2 = 0;
 
 		int index = 0;
-		int blinks = countBlinks(copyOfFixationsVSaccades, copyOfRawFigures);
-		int totalCycles = copyOfRawFigures.size();
+		int blinks = countBlinks(copyOfFixationsVSaccades, copyOfRgps);
+		int totalCycles = copyOfRgps.size();
 
-		for (double[] dArray : copyOfRawFigures) {
+		long start = System.currentTimeMillis();
+		for (RawGazePacket rgp : copyOfRgps) {
 			double distance = 0;
-			if (index < copyOfRawFigures.size() && index < copyOfFixationsVSaccades.size()) {
+			if (index < copyOfRgps.size() && index < copyOfFixationsVSaccades.size()) {
 				boolean fixated = copyOfFixationsVSaccades.get(index);
 				// Keeps track of all the times between fixations
 				if (!fixated) {
@@ -183,12 +184,12 @@ public class TETMainController {
 				}
 
 				// Points for calculating distance
-				x2 = dArray[1];
-				y2 = dArray[2];
+				x2 = rgp.getGazeX();
+				y2 = rgp.getGazeY();
 
 				// Pupil sizes for calculating fidgetiness
-				lP2 = dArray[3];
-				rP2 = dArray[4];
+				lP2 = rgp.getPupilL();
+				rP2 = rgp.getPupilR();
 
 				// Can't calculate distance from the first index
 				if (index != 0) {
@@ -221,6 +222,7 @@ public class TETMainController {
 				index++;
 			}
 		}
+		System.out.println(copyOfRgps.size() + "entries took " + (System.currentTimeMillis() - start) + " milliseconds to calculate");
 
 		// Find the average time between fixations
 		double avgTimeBetweenFixations = 0.0;
@@ -254,6 +256,7 @@ public class TETMainController {
 		fidgetRp = fidgetRp / totalCycles;
 		fidgetAvg = fidgetAvg / totalCycles;
 
+		//TODO: Add smooth tracking variable
 		CalculatedGazePacket cGp = new CalculatedGazeDataBldr().withTotalTime(totalTime).withFixationsPerMin(FPM)
 				.withTimeBtwnFixations(avgTimeBetweenFixations).withAvgFixationLength(avgFixationLength)
 				.withPercentTimeFixated(percentTimeFixated).withAvgSaccadeSpeed(avgSaccadeSpeed).withFidgetL(fidgetLp)
@@ -263,6 +266,9 @@ public class TETMainController {
 		if (pExport) {
 			addTheGoodStuff(cGp);
 		}
+
+		// TODO: give this more thought
+		double concQuotient = (FPM * percentTimeFixated * totalSmoothTrackDistance) / blinks;
 
 		mTotalTimeLbl.setText(String.valueOf(totalTime));
 		mTotalFixationsLbl.setText(String.valueOf(totalFixations));
@@ -279,6 +285,7 @@ public class TETMainController {
 		mRFidgetLbl.setText(mDf.format(fidgetRp));
 		mBFidgetLbl.setText(mDf.format(fidgetAvg));
 		mSmoothTrkDistLbl.setText(mDf.format(totalSmoothTrackDistance));
+		mConcQuotient.setText(mDf.format(concQuotient));
 	}
 
 	// I count 3 "true" fixation booleans in a row a verified fixation
@@ -303,13 +310,13 @@ public class TETMainController {
 	 * empty data of length 1-5 as blink instances. Anything more is likely to
 	 * be caused by me shifting out of the vision zone slightly
 	 */
-	private Integer countBlinks(ArrayList<Boolean> pFixVSac, ArrayList<double[]> pRawList) {
+	private Integer countBlinks(ArrayList<Boolean> pFixVSac, ArrayList<RawGazePacket> pRawList) {
 		int blinks = 0, series = 0, index = 0;
 		ArrayList<Integer> zeroedIndices = new ArrayList<>();
 		boolean blinked = false, endOfRun = false, actualBlink = true;
-		for (double[] d : pRawList) {
-			double x = d[1];
-			double y = d[2];
+		for (RawGazePacket rgp : pRawList) {
+			double x = rgp.getGazeX();
+			double y = rgp.getGazeY();
 			boolean zeroed = (x == 0.0 && y == 0.0);
 
 			if (!zeroed) {
@@ -323,7 +330,7 @@ public class TETMainController {
 				// drops and patchy data being misinterpreted as blinks
 				for (int i = index; i <= index + 10; i++) {
 					if (i < pRawList.size() - 1) {
-						boolean fakeBlink = pRawList.get(i)[1] == 0.0 && pRawList.get(i)[2] == 0.0;
+						boolean fakeBlink = pRawList.get(i).getGazeX() == 0.0 && pRawList.get(i).getGazeY() == 0.0;
 						if (fakeBlink) {
 							actualBlink = false;
 						}
@@ -365,11 +372,6 @@ public class TETMainController {
 		return blinks;
 	}
 
-	/* Each entry is a timestamped data point */
-	private void addRawFigures(double[] pFigures) {
-		mRawFigures.add(pFigures);
-	}
-
 	/**
 	 * Write the currently stored data to file
 	 */
@@ -398,25 +400,34 @@ public class TETMainController {
 	/**
 	 * Give the controller a fresh packet of raw TET data
 	 * 
-	 * @param pPacket
+	 * @param pRgp
 	 *            -- contains all (important) gatherable parameters from TET
 	 *            device
 	 */
-	public void update(RawGazePacket pPacket) {
-		double timestamp = (double) pPacket.getTimestamp();
-		double gX = pPacket.getGazeX();
-		double gY = pPacket.getGazeY();
-		double pL = pPacket.getPupilL();
-		double pR = pPacket.getPupilR();
-		boolean fixed = pPacket.isFixated();
-		// With what we'll calculate
-		double[] rawFigures = { timestamp, gX, gY, pL, pR };
-		addRawFigures(rawFigures);
+	public void update(RawGazePacket pRgp) {
+		double timestamp = (double) pRgp.getTimestamp();
+		double gX = pRgp.getGazeX();
+		double gY = pRgp.getGazeY();
+		double pL = pRgp.getPupilL();
+		double pR = pRgp.getPupilR();
+		boolean fixed = pRgp.isFixated();
+		// With what we calculate
+		mRawFigures.add(pRgp);
 		mFixationsVsaccades.add(fixed);
 
-		// What gets pushed out to file
+		// What gets output to the raw file
 		String rawGazing = mGf.format(timestamp) + "," + mGf.format(gX) + "," + mGf.format(gY) + "," + mGf.format(pL)
 				+ "," + mGf.format(pR) + "," + fixed + System.lineSeparator();
 		addRawGazeData(rawGazing);
+	}
+	
+	public void test() {
+		Random rand = new Random();
+		// 1hr of data collection@30Hz
+		for (int i=0; i<108000; i++) {
+			mRawFigures.add(new RawGazeDataBldr().random().build());
+			mFixationsVsaccades.add(rand.nextBoolean());
+		}
+		calculateTheGoodStuff(false);
 	}
 }
