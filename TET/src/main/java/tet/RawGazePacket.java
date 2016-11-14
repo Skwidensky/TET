@@ -63,6 +63,17 @@ public class RawGazePacket {
 			return this;
 		}
 		
+		public RawGazeDataBldr from(String pRawString) {
+			String[] data = pRawString.split(",");
+			mTimestamp = Long.valueOf(data[0]);
+			mGazeX = Double.valueOf(data[1]);
+			mGazeY = Double.valueOf(data[2]);
+			mPupilL = Double.valueOf(data[3]);
+			mPupilR = Double.valueOf(data[4]);
+			mIsFixated = Boolean.valueOf(data[5]);
+			return this;
+		}
+		
 		public RawGazePacket build() {
 			return new RawGazePacket(this);
 		}		

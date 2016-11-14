@@ -4,6 +4,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.StringJoiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,48 +12,37 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 import com.theeyetribe.clientsdk.GazeManager;
 
+import tet.db.DatabaseMgr;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import tet.CalculatedGazePacket.CalculatedGazeDataBldr;
 import tet.RawGazePacket.RawGazeDataBldr;
+import tet.db.DbTablesDialog;
+import tet.db.sSqlCmds;
 import tet.util.ExportUtil;
 import tet.util.HeatMapProvider;
 
 public class TETMainController {
 	private static final Logger sLog = LoggerFactory.getLogger(TETMainController.class);
 
-	private final Timeline mPeriodicCalculation = new Timeline(
-			new KeyFrame(Duration.seconds(5), new EventHandler<ActionEvent>() {
-
-				@Override
-				public void handle(ActionEvent event) {
-					sLog.info("Updating GUI labels");
-					Runnable calculate = () -> {
-						calculateTheGoodStuff(false);
-					};
-					calculate.run();
-				}
-			}));
-
 	// Data structures
-	private ArrayList<RawGazePacket> mRawFigures = new ArrayList<>();
 	private ArrayList<Boolean> mFixationsVsaccades = new ArrayList<>();
 	private ArrayList<String> mRawStringOutput = new ArrayList<>();
-	private ArrayList<String> mTheGoodStuff = new ArrayList<>();	
+	private ArrayList<String> mTheGoodStuff = new ArrayList<>();
 
 	// Output and calculation
-	private final String RAW_COLUMNS = "timestamp,smoothX,smoothY,pupil_L,pupil_R,fixated";
-	private final String TGS_COLUMNS = "total_time,fixations_per_minute,total_fixations,avg_time_between_fixations,avg_length_of_fixation,percent_time_fixated,avg_saccade_speed,blinks,fidget_L_eye,fidget_R_eye,fidget_B_eyes";
 	private final double INTERVAL = 33.3333;
 	private final double SAMPLE_RATE = 1 / INTERVAL; // 30Hz
 
@@ -64,12 +54,16 @@ public class TETMainController {
 	final DecimalFormat mDf = new DecimalFormat("#.####");
 
 	@FXML
+	StackPane mParentPane;
+	@FXML
 	BorderPane mTxtAreaBorderPane;
+	@FXML
+	TextField mMySqlTableName;
 	@FXML
 	StackPane mHeatMapPane;
 	@FXML
-	Button mExportBtn, mStartBtn, mStopBtn, mClearBtn, mTestBtn;
-	@FXML // rolling output Labels
+	Button mCalcBtn, mStartBtn, mStopBtn, mShowTablesBtn;
+	@FXML // output Labels
 	Label mTotalTimeLbl, mTotalFixationsLbl, mActualFixationsLbl, mTimeBetweenFixationsLbl, mAvgFixationLenLbl,
 			mPercentTimeFixatedLbl, mBlinksLbl, mFixationsPerMinLbl, mTotalSacDistanceLbl, mTotalSacTimeLbl,
 			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient;
@@ -77,7 +71,15 @@ public class TETMainController {
 	@FXML
 	private void initialize() {
 		sLog.info("Initializing main area");
-		mPeriodicCalculation.setCycleCount(Timeline.INDEFINITE);
+		initTextArea();
+		initHeatmap();
+		initButtons();
+
+		sLog.info("Initializing database");
+		DatabaseMgr.getDbMgr();
+	}
+
+	private void initTextArea() {
 		// limit the TextArea to 30 rows for the UI thread's sake
 		mTextOutputArea = new TextArea() {
 			@Override
@@ -90,85 +92,149 @@ public class TETMainController {
 				positionCaret(getText().length());
 			}
 		};
+
 		mTextOutputArea.setEditable(false);
 		mTxtAreaBorderPane.setCenter(mTextOutputArea);
-		
-		// add the HeatMap
+	}
+
+	private void initHeatmap() {
+		// TODO: figure out how to make this more useful
 		HeatMapProvider hmp = new HeatMapProvider();
 		mHeatMapPane.getChildren().add(hmp.getHeatMapPane());
+	}
 
-		// TODO: figure out HeatMap
-
-		// add column labels
-		addRawGazeData(RAW_COLUMNS + System.lineSeparator());
-		mTheGoodStuff.add(TGS_COLUMNS + System.lineSeparator());
-
-		mExportBtn.disableProperty().bind(mStartBtn.disabledProperty());
-		mStartBtn.disableProperty().bind(mStopBtn.disabledProperty().not());
+	private void initButtons() {
+		mCalcBtn.disableProperty().bind(mStartBtn.disabledProperty());
+		mStartBtn.disableProperty()
+				.bind(mStopBtn.disabledProperty().not().or(mMySqlTableName.textProperty().isEmpty()));
 		mStartBtn.setOnAction(event -> {
 			Platform.runLater(() -> new GazeConnection(this));
-			mPeriodicCalculation.play();
 			mStopBtn.setDisable(false);
+			mShowTablesBtn.setDisable(true);
+			mMySqlTableName.setDisable(true);
 		});
 
 		mStopBtn.setOnAction(event -> {
 			GazeManager.getInstance().deactivate();
-			mPeriodicCalculation.stop();
+			dumpRawGazeData();
+			dumpFixationsVSaccades();
 			mStopBtn.setDisable(true);
+			mShowTablesBtn.setDisable(false);
+			mMySqlTableName.setDisable(false);
 		});
 
-		mClearBtn.disableProperty().bind(mStartBtn.disabledProperty());
-
 		// TODO: Latency button
-
 	}
 
 	/* Add a row of >Raw< Gaze Data to the list */
 	private void addRawGazeData(String pGazeData) {
 		mRawStringOutput.add(pGazeData);
+		if (mRawStringOutput.size() > 300) {
+			dumpRawGazeData();
+		}
 		String easierToReadRaw = pGazeData.replaceAll(",", " --- ");
-		Platform.runLater(() -> mTextOutputArea.appendText(easierToReadRaw));
+		Platform.runLater(() -> mTextOutputArea.appendText(easierToReadRaw + System.lineSeparator()));
+	}
+
+	private void dumpRawGazeData() {
+		Task<Void> task = new Task<Void>() {
+			@Override
+			protected Void call() {
+				ArrayList<String> tmpRaw = new ArrayList<>(mRawStringOutput);
+				StringJoiner sj = new StringJoiner(",");
+				mRawStringOutput.clear();
+				for (String raw : tmpRaw) {
+					sj.add("('" + raw + "')");
+				}
+				String tbl = mMySqlTableName.getText();
+				String[] command = new String[2];
+				command[0] = sSqlCmds.createRawTbl(tbl);
+				command[1] = sSqlCmds.insertRawOutputStrings(tbl + "_raw", sj.toString());
+				DatabaseMgr.sqlCommand(false, "", command);
+				return null;
+			}
+		};
+		Thread t = new Thread(task);
+		t.start();
+	}
+
+	private void dumpFixationsVSaccades() {
+		Task<Void> task = new Task<Void>() {
+			@Override
+			protected Void call() {
+				ArrayList<Boolean> tmpFixVSac = new ArrayList<>(mFixationsVsaccades);
+				StringJoiner sj = new StringJoiner(",");
+				mFixationsVsaccades.clear();
+				for (Boolean bool : tmpFixVSac) {
+					sj.add("('" + bool + "')");
+				}
+				String tbl = mMySqlTableName.getText();
+				String[] command = new String[2];
+				command[0] = sSqlCmds.createFixationTbl(tbl);
+				command[1] = sSqlCmds.insertFixationStrings(tbl, sj.toString());
+				DatabaseMgr.sqlCommand(false, "", command);
+				return null;
+			}
+		};
+		Thread t = new Thread(task);
+		t.start();
+	}
+
+	private void dumpGoodStuff() {
+		Task<Void> task = new Task<Void>() {
+			@Override
+			protected Void call() {
+				String tbl = mMySqlTableName.getText();
+				String[] command = new String[3];
+				command[0] = sSqlCmds.createEyeTbl(tbl);
+				command[1] = sSqlCmds.truncateTbl(tbl + "_calculated");
+				command[2] = sSqlCmds.insertEyeValues(tbl, "(" + mTheGoodStuff.get(0) + ")");
+				DatabaseMgr.sqlCommand(false, "", command);
+				mTheGoodStuff.clear();
+				return null;
+			}
+		};
+		Thread t = new Thread(task);
+		t.start();
 	}
 
 	/* Add >Calculated< Gaze Data to the list */
 	private void addTheGoodStuff(CalculatedGazePacket pCgp) {
 		Joiner joiner = Joiner.on(",");
 
-		mTheGoodStuff.add(joiner.join(Arrays.asList(pCgp.getTotalTime(), mDf.format(pCgp.getFixationsPerMin()),
-				pCgp.getTotalFixations(), mDf.format(pCgp.getTimeBetweenFixations()),
-				mDf.format(pCgp.getFixationLength()), mDf.format(pCgp.getPercentTimeFixated()),
-				mDf.format(pCgp.getAvgSaccadeSpeed()), pCgp.getBlinks(), mDf.format(pCgp.getFidgetL()),
-				mDf.format(pCgp.getFidgetR()), mDf.format(pCgp.getAvgFidget()))));
+		mTheGoodStuff.add(joiner.join(
+				Arrays.asList(pCgp.getTotalTime(), mDf.format(pCgp.getFixationsPerMin()), pCgp.getTotalFixations(),
+						mDf.format(pCgp.getTimeBetweenFixations()), mDf.format(pCgp.getFixationLength()),
+						mDf.format(pCgp.getSmoothDist()), mDf.format(pCgp.getPercentTimeFixated()),
+						mDf.format(pCgp.getAvgSaccadeSpeed()), mDf.format(pCgp.getFidgetL()),
+						mDf.format(pCgp.getFidgetR()), mDf.format(pCgp.getAvgFidget()), pCgp.getBlinks())));
 	}
 
 	/********************************************
 	 * LOOKING FOR HOW A DATA POINT WAS CALCULATED? <br>
 	 * YOU'LL FIND IT IN THIS METHOD, I BETCHA
 	 *******************************************/
-	private void calculateTheGoodStuff(boolean pExport) {
-		// save off these two member structures -- they might still be updating
-		// during these calculations
-		ArrayList<Boolean> copyOfFixationsVSaccades = new ArrayList<>(mFixationsVsaccades);
-		ArrayList<RawGazePacket> copyOfRgps = new ArrayList<>(mRawFigures);		
+	private void calculateTheGoodStuff() {
+		ArrayList<Boolean> fixationsVsaccades = getThisTestsFixVSaccade();
+		ArrayList<RawGazePacket> rgps = getThisTestsRgpsFromStrings();
 
 		ArrayList<Double> betweenFixations = new ArrayList<>();
 		ArrayList<Double> fixationLengths = new ArrayList<>();
 
-		double totalTime = (copyOfRgps.get(copyOfRgps.size() - 1).getTimestamp() - mRawFigures.get(0).getTimestamp());
+		double totalTime = (rgps.get(rgps.size() - 1).getTimestamp() - rgps.get(0).getTimestamp());
 		double totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0, fixationLength = 0,
 				totalSaccadeTime = 0, totalSaccadeDistance = 0, totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0,
 				fidgetLp = 0, fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0,
 				rP2 = 0;
 
 		int index = 0;
-		int blinks = countBlinks(copyOfFixationsVSaccades, copyOfRgps);
-		int totalCycles = copyOfRgps.size();
+		int blinks = countBlinks(fixationsVsaccades, rgps);
+		int totalCycles = rgps.size();
 
-		long start = System.currentTimeMillis();
-		for (RawGazePacket rgp : copyOfRgps) {
+		for (RawGazePacket rgp : rgps) {
 			double distance = 0;
-			if (index < copyOfRgps.size() && index < copyOfFixationsVSaccades.size()) {
-				boolean fixated = copyOfFixationsVSaccades.get(index);
+			if (index < rgps.size() && index < fixationsVsaccades.size()) {
+				boolean fixated = fixationsVsaccades.get(index);
 				// Keeps track of all the times between fixations
 				if (!fixated) {
 					timesBetweenFixations += SAMPLE_RATE;
@@ -222,7 +288,6 @@ public class TETMainController {
 				index++;
 			}
 		}
-		System.out.println(copyOfRgps.size() + "entries took " + (System.currentTimeMillis() - start) + " milliseconds to calculate");
 
 		// Find the average time between fixations
 		double avgTimeBetweenFixations = 0.0;
@@ -242,12 +307,12 @@ public class TETMainController {
 			avgFixationLength = (avgFixationLength / fixationLengths.size());
 		}
 
-		int actualNumFixations = findActualNumberOfFixations(copyOfFixationsVSaccades);
+		int actualNumFixations = findActualNumberOfFixations(fixationsVsaccades);
 		FPM = (actualNumFixations / (totalTime / 1000)) * 60;
 
 		percentTimeFixated = (totalFixations * INTERVAL) / totalTime;
 		// Time spent saccading
-		totalSaccadeTime = (copyOfFixationsVSaccades.size() - totalFixations) * INTERVAL;
+		totalSaccadeTime = (fixationsVsaccades.size() - totalFixations) * INTERVAL;
 		// With the time spent and distance, calculate the average speed of a
 		// saccade (pixels/millisecond)
 		avgSaccadeSpeed = totalSaccadeDistance / totalSaccadeTime;
@@ -256,21 +321,19 @@ public class TETMainController {
 		fidgetRp = fidgetRp / totalCycles;
 		fidgetAvg = fidgetAvg / totalCycles;
 
-		//TODO: Add smooth tracking variable
 		CalculatedGazePacket cGp = new CalculatedGazeDataBldr().withTotalTime(totalTime).withFixationsPerMin(FPM)
-				.withTimeBtwnFixations(avgTimeBetweenFixations).withAvgFixationLength(avgFixationLength)
+				.withTotalFixations(totalFixations).withTimeBtwnFixations(avgTimeBetweenFixations)
+				.withAvgFixationLength(avgFixationLength).withSmoothDist(totalSmoothTrackDistance)
 				.withPercentTimeFixated(percentTimeFixated).withAvgSaccadeSpeed(avgSaccadeSpeed).withFidgetL(fidgetLp)
 				.withFidgetR(fidgetRp).withAvgFidget(fidgetAvg).withTotalFixations(actualNumFixations)
 				.withBlinks(blinks).build();
 
-		if (pExport) {
-			addTheGoodStuff(cGp);
-		}
+		addTheGoodStuff(cGp);
 
 		// TODO: give this more thought
 		double concQuotient = (FPM * percentTimeFixated * totalSmoothTrackDistance) / blinks;
 
-		mTotalTimeLbl.setText(String.valueOf(totalTime));
+		mTotalTimeLbl.setText(mDf.format(totalTime));
 		mTotalFixationsLbl.setText(String.valueOf(totalFixations));
 		mActualFixationsLbl.setText(String.valueOf(actualNumFixations));
 		mTimeBetweenFixationsLbl.setText(mDf.format(avgTimeBetweenFixations));
@@ -373,31 +436,6 @@ public class TETMainController {
 	}
 
 	/**
-	 * Write the currently stored data to file
-	 */
-	public void export() {
-		if (mRawStringOutput.size() > 1) {
-			calculateTheGoodStuff(true);
-			ExportUtil.export(mRawStringOutput, mTheGoodStuff);
-			resetEverything();
-		}
-	}
-
-	/**
-	 * Clear the controller's lists for a fresh start
-	 */
-	public void resetEverything() {
-		sLog.info("Resetting all structures");
-		mTextOutputArea.clear();
-		mRawFigures.clear();
-		mFixationsVsaccades.clear();
-		mRawStringOutput.clear();
-		addRawGazeData(RAW_COLUMNS + System.lineSeparator());
-		mTheGoodStuff.clear();
-		mTheGoodStuff.add(TGS_COLUMNS + System.lineSeparator());
-	}
-
-	/**
 	 * Give the controller a fresh packet of raw TET data
 	 * 
 	 * @param pRgp
@@ -405,29 +443,61 @@ public class TETMainController {
 	 *            device
 	 */
 	public void update(RawGazePacket pRgp) {
-		double timestamp = (double) pRgp.getTimestamp();
+		long timestamp = pRgp.getTimestamp();
 		double gX = pRgp.getGazeX();
 		double gY = pRgp.getGazeY();
 		double pL = pRgp.getPupilL();
 		double pR = pRgp.getPupilR();
 		boolean fixed = pRgp.isFixated();
-		// With what we calculate
-		mRawFigures.add(pRgp);
+
 		mFixationsVsaccades.add(fixed);
+		if (mFixationsVsaccades.size() > 300) {
+			dumpFixationsVSaccades();
+		}
 
 		// What gets output to the raw file
 		String rawGazing = mGf.format(timestamp) + "," + mGf.format(gX) + "," + mGf.format(gY) + "," + mGf.format(pL)
-				+ "," + mGf.format(pR) + "," + fixed + System.lineSeparator();
+				+ "," + mGf.format(pR) + "," + fixed;
 		addRawGazeData(rawGazing);
 	}
-	
-	public void test() {
-		Random rand = new Random();
-		// 1hr of data collection@30Hz
-		for (int i=0; i<108000; i++) {
-			mRawFigures.add(new RawGazeDataBldr().random().build());
-			mFixationsVsaccades.add(rand.nextBoolean());
-		}
-		calculateTheGoodStuff(false);
+
+	private ArrayList<String> getThisTestsRawStrings() {
+		ArrayList<String> returnList = new ArrayList<>();
+		String[] command = new String[1];
+		command[0] = sSqlCmds.getRaw(mMySqlTableName.getText());
+		DatabaseMgr.sqlCommand(true, "raw_sample", command);
+		DatabaseMgr.getQuery().stream().forEach(rawOutput -> {
+			returnList.add(rawOutput);
+		});
+		return returnList;
+	}
+
+	private ArrayList<RawGazePacket> getThisTestsRgpsFromStrings() {
+		ArrayList<RawGazePacket> returnList = new ArrayList<>();
+		getThisTestsRawStrings().forEach(sample -> returnList.add(new RawGazeDataBldr().from(sample).build()));
+		return returnList;
+	}
+
+	private ArrayList<Boolean> getThisTestsFixVSaccade() {
+		ArrayList<Boolean> returnList = new ArrayList<>();
+		String[] command = new String[1];
+		command[0] = "select * from " + mMySqlTableName.getText() + "_fixations;";
+		DatabaseMgr.sqlCommand(true, "fixated", command);
+		DatabaseMgr.getQuery().stream().forEach(fixated -> {
+			returnList.add(Boolean.valueOf(fixated));
+		});
+		returnList.addAll(mFixationsVsaccades);
+		return returnList;
+	}
+
+	@FXML
+	private void calculate() {
+		calculateTheGoodStuff();
+		dumpGoodStuff();
+	}
+
+	@FXML
+	private void showDbTables() {
+		mParentPane.getChildren().add(new DbTablesDialog(mParentPane));
 	}
 }

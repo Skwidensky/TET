@@ -9,25 +9,16 @@ import java.util.ArrayList;
 
 public class ExportUtil {
 	
-	public static void export(ArrayList<String> pRawOut, ArrayList<String> pCalcOut) {
+	public static void export(String pFilename, ArrayList<String> pOut) {
 		try {
-			Path path = FileSystems.getDefault().getPath(System.getProperty("user.home") + "\\Desktop", "NEWEST_RAWSTRING_OUT.txt");
+			Path path = FileSystems.getDefault().getPath(System.getProperty("user.home") + "\\Desktop", pFilename + ".txt");
 			Files.deleteIfExists(path);
-			FileWriter fw = new FileWriter(System.getProperty("user.home") + "\\Desktop\\NEWEST_RAWSTRING_OUT.txt", true);
-			for (String gazeInstance : pRawOut) {
-				fw.write(gazeInstance);
+			FileWriter fw = new FileWriter(System.getProperty("user.home") + "\\Desktop\\" + pFilename + ".txt", true);
+			for (String outputLine : pOut) {
+				fw.write(outputLine + "\n");
 			}
 			fw.flush();
-			fw.close();
-			path = FileSystems.getDefault().getPath(System.getProperty("user.home") + "\\Desktop", "NEWEST_GOODSTUFF_OUT.txt");
-			Files.deleteIfExists(path);
-			fw = new FileWriter(System.getProperty("user.home") + "\\Desktop\\NEWEST_GOODSTUFF_OUT.txt", true);
-			for (String goodStuff : pCalcOut) {
-				fw.write(goodStuff);
-			}
-			fw.flush();
-			fw.close();
-			
+			fw.close();			
 		} catch (IOException f) {
 		}
 	}

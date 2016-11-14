@@ -3,21 +3,26 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<StackPane prefHeight="475.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1"
+<StackPane fx:id="mParentPane" prefHeight="475.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1"
 	fx:controller="tet.TETMainController">
 	<HBox>
 		<children>
 			<BorderPane fx:id="mTxtAreaBorderPane" prefHeight="400.0" prefWidth="400.0">
 				<bottom>
-					<HBox alignment="CENTER" prefHeight="19.0" prefWidth="200.0" spacing="5.0" BorderPane.alignment="CENTER">
-						<children>
-							<Button fx:id="mExportBtn" onAction="#export" text="Export" />
-							<Button fx:id="mStartBtn" text="Start" />
-							<Button fx:id="mStopBtn" disable="true" text="Stop" />
-							<Button fx:id="mClearBtn" onAction="#resetEverything" text="Clear" />
-							<Button fx:id="mTestBtn" onAction="#test" text="Test" />
-						</children>
-					</HBox>
+					<VBox>
+						<HBox alignment="CENTER" prefHeight="19.0" prefWidth="200.0" spacing="5.0" BorderPane.alignment="CENTER">
+							<children>
+								<Button fx:id="mCalcBtn" onAction="#calculate" text="Calculate" />
+								<Button fx:id="mStartBtn" text="Start" />
+								<Button fx:id="mStopBtn" disable="true" text="Stop" />
+								<Button fx:id="mShowTablesBtn" onAction="#showDbTables" text="Show Tables" />
+							</children>
+						</HBox>
+						<HBox>
+							<Label text="Name this SQL table: " />
+							<TextField fx:id="mMySqlTableName" />
+						</HBox>
+					</VBox>
 				</bottom>
 			</BorderPane>
 		</children>
