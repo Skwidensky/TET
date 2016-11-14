@@ -14,6 +14,8 @@ This is a simple GUI for use with TheEyeTribe eye tracking device
 * Buy TheEyeTribe[TET] (http://theeyetribe.com/) -- got my non-pro edition for $99
 * Install the device -- **requires USB 3.0**
 * Connect to TET server and calibrate the device with TET UI -- both available from TET's SDK
+* Set up MySQL server on localhost (username: admin password: password)
+* Start MySQL server
 * Run this is conjunction with their software
 
 ### Who do I talk to? ###
