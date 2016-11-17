@@ -1,6 +1,7 @@
 package tet.db;
 
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
@@ -37,7 +38,11 @@ public class DbTablesDialog extends StackPane {
 		DatabaseMgr.sqlCommand(true, "", command);
 		mListOfTables = FXCollections.observableArrayList(DatabaseMgr.getQuery());
 		mDbListView = new ListView<>(mListOfTables);
-		mListSizeBinding  = Bindings.size(mListOfTables);
+		mListSizeBinding = Bindings.size(mListOfTables);
+	}
+
+	private String getBaseTblName(String pTbl) {
+		return pTbl.substring(0, pTbl.indexOf("_", 0));
 	}
 
 	private void initButtons() {
@@ -46,21 +51,28 @@ public class DbTablesDialog extends StackPane {
 
 		Button dropBtn = new Button("Drop");
 		dropBtn.setOnAction(event -> drop());
-		dropBtn.disableProperty().bind(mListSizeBinding.greaterThan(0).not());
+		dropBtn.disableProperty().bind(mListSizeBinding.greaterThan(0).not()
+				.or(mDbListView.getSelectionModel().selectedIndexProperty().isEqualTo(-1)));
 
 		Button exportBtn = new Button("Export");
 		exportBtn.setOnAction(event -> export());
-		exportBtn.disableProperty().bind(mListSizeBinding.greaterThan(0).not());
+		exportBtn.disableProperty().bind(mListSizeBinding.greaterThan(0).not()
+				.or(mDbListView.getSelectionModel().selectedIndexProperty().isEqualTo(-1)));
 
 		mButtonBank = new HBox(5, backBtn, dropBtn, exportBtn);
 	}
 
 	private void drop() {
-		String tbl = mDbListView.getSelectionModel().getSelectedItem();
-		mListOfTables.remove(tbl);
-		String[] command = new String[1];
-		command[0] = sSqlCmds.dropTbl(tbl);
-		DatabaseMgr.sqlCommand(false, "", command);
+		String tblBaseName = getBaseTblName(mDbListView.getSelectionModel().getSelectedItem());
+
+		for (String tbl : mListOfTables) {
+			if (getBaseTblName(tbl).equals(tblBaseName)) {
+				String[] command = new String[1];
+				command[0] = sSqlCmds.dropTbl(tbl);
+				DatabaseMgr.sqlCommand(false, "", command);				
+			}
+		}
+		mListOfTables.removeIf(p -> getBaseTblName(p).equals(tblBaseName));
 	}
 
 	private void export() {

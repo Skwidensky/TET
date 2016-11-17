@@ -12,7 +12,7 @@
 					<VBox>
 						<HBox alignment="CENTER" prefHeight="19.0" prefWidth="200.0" spacing="5.0" BorderPane.alignment="CENTER">
 							<children>
-								<Button fx:id="mCalcBtn" onAction="#calculate" text="Calculate" />
+								<Button fx:id="mCalcBtn" onAction="#calculate" disable="true" text="Calculate" />
 								<Button fx:id="mStartBtn" text="Start" />
 								<Button fx:id="mStopBtn" disable="true" text="Stop" />
 								<Button fx:id="mShowTablesBtn" onAction="#showDbTables" text="Show Tables" />
@@ -108,7 +108,10 @@
 				<Label text="Concentration Quotient (CT): " GridPane.columnIndex="0" GridPane.rowIndex="15" />
 				<Label fx:id="mConcQuotient" GridPane.columnIndex="1" GridPane.rowIndex="15" />
 			</GridPane>
-			<StackPane fx:id="mHeatMapPane" minWidth="300" minHeight="300" />
+			<AnchorPane fx:id="mHeatMapPane" minWidth="300" minHeight="300" />
+			<HBox fx:id="mProgressBox" spacing="5">
+				<Label text="Building heatmap... " />		
+			</HBox>
 		</VBox>
 	</HBox>
 

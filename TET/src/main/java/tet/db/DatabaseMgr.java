@@ -49,15 +49,16 @@ public class DatabaseMgr {
 					for (int i = 1; i <= columnCount; i++) {
 						joiner.add(metadata.getColumnName(i));
 					}
-					sQueryResults.add(joiner.toString());
-					String row = "";
+					sQueryResults.add(joiner.toString());	
+					
 					while (resultSet.next()) {
+						joiner = new StringJoiner(",");
 						for (int i = 1; i <= columnCount; i++) {
-							row += resultSet.getString(i);
+							joiner.add(resultSet.getString(i));
 						}
-						row += "\n";
+						sQueryResults.add(joiner.toString());
 					}
-					sQueryResults.add(row);
+					
 				} else if (!pColumn.isEmpty()) {
 					while (resultSet.next()) {
 						sQueryResults.add(resultSet.getString(pColumn));

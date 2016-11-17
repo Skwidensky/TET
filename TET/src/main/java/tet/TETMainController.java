@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.StringJoiner;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,26 +14,24 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 import com.theeyetribe.clientsdk.GazeManager;
 
-import tet.db.DatabaseMgr;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import eu.hansolo.fx.heatmap.HeatMap;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.util.Duration;
 import tet.CalculatedGazePacket.CalculatedGazeDataBldr;
 import tet.RawGazePacket.RawGazeDataBldr;
+import tet.db.DatabaseMgr;
 import tet.db.DbTablesDialog;
 import tet.db.sSqlCmds;
-import tet.util.ExportUtil;
 import tet.util.HeatMapProvider;
 
 public class TETMainController {
@@ -43,10 +43,12 @@ public class TETMainController {
 	private ArrayList<String> mTheGoodStuff = new ArrayList<>();
 
 	// Output and calculation
-	private final double INTERVAL = 33.3333;
-	private final double SAMPLE_RATE = 1 / INTERVAL; // 30Hz
+	private final Executor mExec = Executors.newSingleThreadExecutor();
+	private double mInterval;
+	private double mSampleRate;
 
 	private TextArea mTextOutputArea;
+	private HeatMap mHeatMap;
 
 	// Generic formatter
 	DecimalFormat mGf = new DecimalFormat("#");
@@ -60,7 +62,9 @@ public class TETMainController {
 	@FXML
 	TextField mMySqlTableName;
 	@FXML
-	StackPane mHeatMapPane;
+	AnchorPane mHeatMapPane;
+	@FXML
+	HBox mProgressBox;
 	@FXML
 	Button mCalcBtn, mStartBtn, mStopBtn, mShowTablesBtn;
 	@FXML // output Labels
@@ -98,17 +102,40 @@ public class TETMainController {
 	}
 
 	private void initHeatmap() {
-		// TODO: figure out how to make this more useful
 		HeatMapProvider hmp = new HeatMapProvider();
-		mHeatMapPane.getChildren().add(hmp.getHeatMapPane());
+		mHeatMap = hmp.getHeatMap();
+		Platform.runLater(() -> {
+			Random rand = new Random();
+			// for (int i = 0; i < 400; i++) {
+			// mHeatMap.addEvent(rand.nextInt(390), rand.nextInt(390));
+			// }
+			mProgressBox.setVisible(false);
+		});
+		AnchorPane.setTopAnchor(mHeatMap, 0.0);
+		AnchorPane.setRightAnchor(mHeatMap, 0.0);
+		AnchorPane.setBottomAnchor(mHeatMap, 0.0);
+		AnchorPane.setLeftAnchor(mHeatMap, 0.0);
+		mHeatMapPane.getChildren().add(mHeatMap);
+		mHeatMapPane.setOnMouseClicked(click -> {
+			if (click.getClickCount() > 1) {
+				showTransparentOverlay(click);
+			}
+		});
 	}
 
+	@SuppressWarnings("static-access")
 	private void initButtons() {
-		mCalcBtn.disableProperty().bind(mStartBtn.disabledProperty());
 		mStartBtn.disableProperty()
 				.bind(mStopBtn.disabledProperty().not().or(mMySqlTableName.textProperty().isEmpty()));
 		mStartBtn.setOnAction(event -> {
-			Platform.runLater(() -> new GazeConnection(this));
+			Platform.runLater(() -> {
+				new GazeConnection(this);
+				String frameRate = GazeManager.getInstance().getFrameRate().toString();
+				mInterval = frameRate.equals(GazeManager.getInstance().getFrameRate().FPS_30.toString()) ? 30.0 : 60.0;
+				mSampleRate = 1 / (1 / mInterval);
+				sLog.info("Connected to gaze server at " + mSampleRate + "Hz");
+			});
+			mCalcBtn.setDisable(true);
 			mStopBtn.setDisable(false);
 			mShowTablesBtn.setDisable(true);
 			mMySqlTableName.setDisable(true);
@@ -118,6 +145,7 @@ public class TETMainController {
 			GazeManager.getInstance().deactivate();
 			dumpRawGazeData();
 			dumpFixationsVSaccades();
+			mCalcBtn.setDisable(false);
 			mStopBtn.setDisable(true);
 			mShowTablesBtn.setDisable(false);
 			mMySqlTableName.setDisable(false);
@@ -137,65 +165,53 @@ public class TETMainController {
 	}
 
 	private void dumpRawGazeData() {
-		Task<Void> task = new Task<Void>() {
-			@Override
-			protected Void call() {
-				ArrayList<String> tmpRaw = new ArrayList<>(mRawStringOutput);
-				StringJoiner sj = new StringJoiner(",");
-				mRawStringOutput.clear();
-				for (String raw : tmpRaw) {
-					sj.add("('" + raw + "')");
-				}
-				String tbl = mMySqlTableName.getText();
-				String[] command = new String[2];
-				command[0] = sSqlCmds.createRawTbl(tbl);
-				command[1] = sSqlCmds.insertRawOutputStrings(tbl + "_raw", sj.toString());
-				DatabaseMgr.sqlCommand(false, "", command);
-				return null;
+		mExec.execute(() -> {
+			ArrayList<String> tmpRaw = new ArrayList<>(mRawStringOutput);
+			StringJoiner sj = new StringJoiner(",");
+			for (String raw : tmpRaw) {
+				sj.add("('" + raw + "')");
 			}
-		};
-		Thread t = new Thread(task);
-		t.start();
+			if (sj.toString().isEmpty()) {
+				return;
+			}
+			String tbl = mMySqlTableName.getText();
+			String[] command = new String[2];
+			command[0] = sSqlCmds.createRawTbl(tbl);
+			command[1] = sSqlCmds.insertRawOutputStrings(tbl + "_raw", sj.toString());
+			DatabaseMgr.sqlCommand(false, "", command);
+			mRawStringOutput.clear();
+		});
 	}
 
 	private void dumpFixationsVSaccades() {
-		Task<Void> task = new Task<Void>() {
-			@Override
-			protected Void call() {
-				ArrayList<Boolean> tmpFixVSac = new ArrayList<>(mFixationsVsaccades);
-				StringJoiner sj = new StringJoiner(",");
-				mFixationsVsaccades.clear();
-				for (Boolean bool : tmpFixVSac) {
-					sj.add("('" + bool + "')");
-				}
-				String tbl = mMySqlTableName.getText();
-				String[] command = new String[2];
-				command[0] = sSqlCmds.createFixationTbl(tbl);
-				command[1] = sSqlCmds.insertFixationStrings(tbl, sj.toString());
-				DatabaseMgr.sqlCommand(false, "", command);
-				return null;
+		mExec.execute(() -> {
+			ArrayList<Boolean> tmpFixVSac = new ArrayList<>(mFixationsVsaccades);
+			StringJoiner sj = new StringJoiner(",");
+			mFixationsVsaccades.clear();
+			for (Boolean bool : tmpFixVSac) {
+				sj.add("('" + bool + "')");
 			}
-		};
-		Thread t = new Thread(task);
-		t.start();
+			if (sj.toString().isEmpty()) {
+				return;
+			}
+			String tbl = mMySqlTableName.getText();
+			String[] command = new String[2];
+			command[0] = sSqlCmds.createFixationTbl(tbl);
+			command[1] = sSqlCmds.insertFixationStrings(tbl, sj.toString());
+			DatabaseMgr.sqlCommand(false, "", command);
+		});
 	}
 
 	private void dumpGoodStuff() {
-		Task<Void> task = new Task<Void>() {
-			@Override
-			protected Void call() {
-				String tbl = mMySqlTableName.getText();
-				String[] command = new String[3];
-				command[0] = sSqlCmds.createEyeTbl(tbl);
-				command[1] = sSqlCmds.truncateTbl(tbl + "_calculated");
-				command[2] = sSqlCmds.insertEyeValues(tbl, "(" + mTheGoodStuff.get(0) + ")");
-				DatabaseMgr.sqlCommand(false, "", command);
-				mTheGoodStuff.clear();
-				return null;
-			}
-		};
-		Thread t = new Thread(task);
-		t.start();
+		mExec.execute(() -> {
+			String tbl = mMySqlTableName.getText();
+			String[] command = new String[3];
+			command[0] = sSqlCmds.createEyeTbl(tbl);
+			command[1] = sSqlCmds.truncateTbl(tbl + "_calculated");
+			command[2] = sSqlCmds.insertEyeValues(tbl, "(" + mTheGoodStuff.get(0) + ")");
+			DatabaseMgr.sqlCommand(false, "", command);
+			mTheGoodStuff.clear();
+		});
 	}
 
 	/* Add >Calculated< Gaze Data to the list */
@@ -221,8 +237,14 @@ public class TETMainController {
 		ArrayList<Double> betweenFixations = new ArrayList<>();
 		ArrayList<Double> fixationLengths = new ArrayList<>();
 
-		double totalTime = (rgps.get(rgps.size() - 1).getTimestamp() - rgps.get(0).getTimestamp());
-		double totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0, fixationLength = 0,
+		/*
+		 * Because a session could be broken up into different chunks of time
+		 * (Start-Stop-Start), getting the total time via (Tn - T0) won't be
+		 * accurate. Loop the whole thing and tally up the time. If a block of
+		 * time is greater than our interval, just set it to the interval
+		 */
+		long t1 = 0, t2 = 0;
+		double  totalTime = 0, totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0, fixationLength = 0,
 				totalSaccadeTime = 0, totalSaccadeDistance = 0, totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0,
 				fidgetLp = 0, fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0,
 				rP2 = 0;
@@ -232,12 +254,21 @@ public class TETMainController {
 		int totalCycles = rgps.size();
 
 		for (RawGazePacket rgp : rgps) {
+			if (index == 0) {
+				t1 = rgp.getTimestamp();				
+			} else {
+				t2 = rgp.getTimestamp();
+				double incrementTime = t2 - t1;
+				incrementTime = incrementTime > mInterval ? (1/mInterval)*1000 : incrementTime; 
+				totalTime += incrementTime;
+				t1 = t2;
+			}
 			double distance = 0;
 			if (index < rgps.size() && index < fixationsVsaccades.size()) {
 				boolean fixated = fixationsVsaccades.get(index);
 				// Keeps track of all the times between fixations
 				if (!fixated) {
-					timesBetweenFixations += SAMPLE_RATE;
+					timesBetweenFixations += mSampleRate;
 					if (fixationLength > 0) {
 						fixationLengths.add(fixationLength);
 						fixationLength = 0;
@@ -246,7 +277,7 @@ public class TETMainController {
 					betweenFixations.add(timesBetweenFixations);
 					timesBetweenFixations = 0;
 				} else {
-					fixationLength += SAMPLE_RATE;
+					fixationLength += mSampleRate;
 				}
 
 				// Points for calculating distance
@@ -310,9 +341,9 @@ public class TETMainController {
 		int actualNumFixations = findActualNumberOfFixations(fixationsVsaccades);
 		FPM = (actualNumFixations / (totalTime / 1000)) * 60;
 
-		percentTimeFixated = (totalFixations * INTERVAL) / totalTime;
+		percentTimeFixated = (totalFixations * mInterval) / totalTime;
 		// Time spent saccading
-		totalSaccadeTime = (fixationsVsaccades.size() - totalFixations) * INTERVAL;
+		totalSaccadeTime = (fixationsVsaccades.size() - totalFixations) * mInterval;
 		// With the time spent and distance, calculate the average speed of a
 		// saccade (pixels/millisecond)
 		avgSaccadeSpeed = totalSaccadeDistance / totalSaccadeTime;
@@ -370,7 +401,7 @@ public class TETMainController {
 
 	/*
 	 * Count and remove "blink" instances from rawFigures I count series of
-	 * empty data of length 1-5 as blink instances. Anything more is likely to
+	 * empty data of length 1-15 as blink instances. Anything more is likely to
 	 * be caused by me shifting out of the vision zone slightly
 	 */
 	private Integer countBlinks(ArrayList<Boolean> pFixVSac, ArrayList<RawGazePacket> pRawList) {
@@ -413,7 +444,7 @@ public class TETMainController {
 				endOfRun = false;
 			}
 
-			if (series < 2 || series > 5) {
+			if (series < 2 || series > 15) {
 				blinked = false;
 			} else {
 				blinked = true;
@@ -490,8 +521,18 @@ public class TETMainController {
 		return returnList;
 	}
 
+	private void showTransparentOverlay(MouseEvent pEvent) {
+		// Hide this current window (if this is what you want)
+		// ((Node)(pEvent.getSource())).getScene().getWindow().hide();
+		TransparentHeatmapStage hmStage = new TransparentHeatmapStage(mHeatMapPane);
+		hmStage.getTransparentStage().show();
+		// mHmPane.setMinWidth(Screen.getPrimary().getBounds().getWidth());
+		// mHmPane.setMinHeight(Screen.getPrimary().getBounds().getHeight());
+	}
+
 	@FXML
 	private void calculate() {
+		mCalcBtn.setDisable(true);
 		calculateTheGoodStuff();
 		dumpGoodStuff();
 	}

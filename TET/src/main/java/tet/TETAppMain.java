@@ -28,7 +28,7 @@ public class TETAppMain extends Application {
 		sLog.info("Starting TET-FX application");
 		
 		double width = 750;
-		double height = 550;
+		double height = 650;
 		mRoot.setPrefWidth(width);
 		mRoot.setPrefHeight(height);
 		mRoot.setMinWidth(width);
@@ -39,6 +39,7 @@ public class TETAppMain extends Application {
 		Scene scene = new Scene(mRoot, width, height);
 		scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
 		pPrimaryStage.setScene(scene);
+		pPrimaryStage.setResizable(false);
 		pPrimaryStage.show();
 		sStageWidth = pPrimaryStage.widthProperty();	
 		sStageHeight = pPrimaryStage.heightProperty();
