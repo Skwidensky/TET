@@ -59,5 +59,11 @@
 			<artifactId>weka-stable</artifactId>
 			<version>3.8.0</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/de.jensd/fontawesomefx -->
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx</artifactId>
+			<version>8.6</version>
+		</dependency>
 	</dependencies>
 </project>

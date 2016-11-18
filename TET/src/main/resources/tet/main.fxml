@@ -29,7 +29,7 @@
 		<VBox>
 			<GridPane>
 				<Pane GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="off-label">
-					<Label text="Total time(millis): " />
+					<Label text="Total time (sec): " />
 				</Pane>
 				<Pane GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="off-label">
 					<Label fx:id="mTotalTimeLbl" />
@@ -108,10 +108,6 @@
 				<Label text="Concentration Quotient (CT): " GridPane.columnIndex="0" GridPane.rowIndex="15" />
 				<Label fx:id="mConcQuotient" GridPane.columnIndex="1" GridPane.rowIndex="15" />
 			</GridPane>
-			<AnchorPane fx:id="mHeatMapPane" minWidth="300" minHeight="300" />
-			<HBox fx:id="mProgressBox" spacing="5">
-				<Label text="Building heatmap... " />		
-			</HBox>
 		</VBox>
 	</HBox>
 

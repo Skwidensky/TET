@@ -15,10 +15,6 @@ public class sSqlCmds {
 		return "create table if not exists " + pName + "_raw (raw_sample VARCHAR(50));";
 	}
 
-	public static String createFixationTbl(String pName) {
-		return "create table if not exists " + pName + "_fixations" + " (fixated VARCHAR(5));";
-	}
-
 	public static String insertEyeValues(String pTable, String pValues) {
 		return "insert into " + pTable
 				+ "_calculated (total_time, fpm, tot_fixations, time_btwn_fix, fix_len, smooth_dist, pct_fixated, avg_sac_spd, fidg_l, fidg_r, avg_fidg, blinks) values "
@@ -28,11 +24,7 @@ public class sSqlCmds {
 	public static String insertRawOutputStrings(String pTable, String pValues) {
 		return "insert into " + pTable + " (raw_sample) values " + pValues + ";";
 	}
-
-	public static String insertFixationStrings(String pTable, String pValues) {
-		return "insert into " + pTable + "_fixations" + " (fixated) values " + pValues + ";";
-	}
-
+	
 	public static String getListOfTables() {
 		return "show tables;";
 	}
