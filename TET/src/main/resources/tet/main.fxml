@@ -16,6 +16,8 @@
 								<Button fx:id="mStartBtn" text="Start" />
 								<Button fx:id="mStopBtn" disable="true" text="Stop" />
 								<Button fx:id="mShowTablesBtn" onAction="#showDbTables" text="Show Tables" />
+								<Button fx:id="mTrainBtn" onAction="#showTrainingScreen" text="Train" />
+								<Button fx:id="mTestBtn" onAction="#showTestingScreen" text="Test" />
 							</children>
 						</HBox>
 						<HBox>

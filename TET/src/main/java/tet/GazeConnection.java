@@ -7,10 +7,10 @@ import com.theeyetribe.clientsdk.data.GazeData;
 import tet.RawGazePacket.RawGazeDataBldr;
 
 public class GazeConnection implements IGazeListener {
-	TETMainController mCont;
+	IGazeController mCont;
 
 	// Connect to TET's server for collection of the actual data
-	public GazeConnection(TETMainController pCont) {
+	public GazeConnection(IGazeController pCont) {
 		mCont = pCont;
 		GazeManager.getInstance().activate();
 		GazeManager.getInstance().addGazeListener(this);
