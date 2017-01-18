@@ -9,6 +9,7 @@ import com.theeyetribe.clientsdk.GazeManager;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import tet.CalculatedGazePacket;
 import tet.GazeConnection;
@@ -18,15 +19,18 @@ import tet.TETMainController;
 import tet.util.CgpUtil;
 
 public class TrainingDialogController implements IGazeController {
-	
+
 	private static final Logger sLog = LoggerFactory.getLogger(TrainingDialogController.class);
-	
+
 	private ArrayList<CalculatedGazePacket> mCurrentTrainingSessionPkts;
-	private ArrayList<RawGazePacket> mSingleRgpSet;
+	private final ArrayList<RawGazePacket> mSingleRgpSet = new ArrayList<>();
 	private double mInterval, mSampleRt;
 
 	@FXML
 	private BorderPane mParentPane;
+
+	@FXML
+	private TextField mSqlTableName, mName;
 
 	@FXML
 	private void initialize() {
@@ -50,9 +54,10 @@ public class TrainingDialogController implements IGazeController {
 		GazeManager.getInstance().deactivate();
 		calculateTheGoodStuff();
 	}
-	
+
 	@FXML
 	private void done() {
+		System.out.println(mCurrentTrainingSessionPkts);
 		TETMainController.getInstance().getMainView().getChildren().remove(mParentPane);
 	}
 
@@ -64,7 +69,7 @@ public class TrainingDialogController implements IGazeController {
 	}
 
 	@Override
-	public void update(RawGazePacket pRawPckt) {	
+	public void update(RawGazePacket pRawPckt) {
 		mSingleRgpSet.add(pRawPckt);
 	}
 

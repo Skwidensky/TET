@@ -25,9 +25,9 @@ public class CgpUtil {
 		 */
 		long t1 = 0, t2 = 0;
 		double totalTime = 0, totalFixations = 0, FPM = 0, percentTimeFixated = 0, timesBetweenFixations = 0,
-				fixationLength = 0, totalSaccadeTime = 0, totalSaccadeDistance = 0, totalSmoothTrackDistance = 0,
-				avgSaccadeSpeed = 0, fidgetLp = 0, fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0,
-				lP2 = 0, rP1 = 0, rP2 = 0;
+				fixationLength = 0, totalSaccadeTime = 0, totalSmoothTrackingTime = 0, totalSaccadeDistance = 0,
+				totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0, avgSmoothTrackingSpeed = 0, fidgetLp = 0,
+				fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0, rP2 = 0;
 
 		int index = 0;
 		int blinks = countBlinks(pRgps);
@@ -76,7 +76,19 @@ public class CgpUtil {
 				if (fixated) {
 					totalFixations++;
 					// Smooth tracking distance
-					totalSmoothTrackDistance += distance;
+					if (distance > 1.5) {
+						/*
+						 * 1.5 is a magic number. The sensor itself has what I
+						 * call "pixel shudder", meaning even when you're
+						 * fixated, the (x,y) gaze coordinates still shift
+						 * every-so-slightly. After multiple observations I
+						 * found that the average "shudder" was between 1 and
+						 * 1.41 pixels. Therefore, this conditional is meant to
+						 * mitigate that from the actual distance traversed in
+						 * smooth tracking.
+						 */
+						totalSmoothTrackDistance += distance;
+					}
 				} else {
 					// Saccadic movements
 					if (!fixated) {
@@ -122,9 +134,12 @@ public class CgpUtil {
 		percentTimeFixated = (totalFixations * pInterval) / totalTime;
 		// Time spent saccading
 		totalSaccadeTime = (pRgps.size() - totalFixations) * pInterval;
-		// With the time spent and distance, calculate the average speed of a
-		// saccade (pixels/millisecond)
+		// Time spent fixated/smooth tracking
+		totalSmoothTrackingTime = totalFixations * pInterval;
+		// With the time spent and distance, calculate the average speeds of a
+		// saccade and smooth traversal (pixels/millisecond)
 		avgSaccadeSpeed = (totalSaccadeDistance / totalSaccadeTime) / 1000;
+		avgSmoothTrackingSpeed = (totalSmoothTrackDistance / totalSmoothTrackingTime) / 1000;
 
 		fidgetLp = fidgetLp / totalCycles;
 		fidgetRp = fidgetRp / totalCycles;
@@ -133,8 +148,9 @@ public class CgpUtil {
 		CalculatedGazePacket cGp = new CalculatedGazeDataBldr().withTotalTime(totalTime).withFixationsPerMin(FPM)
 				.withTimeBtwnFixations(avgTimeBetweenFixations).withAvgFixationLength(avgFixationLength)
 				.withSmoothDist(totalSmoothTrackDistance).withPercentTimeFixated(percentTimeFixated)
-				.withAvgSaccadeSpeed(avgSaccadeSpeed).withFidgetL(fidgetLp).withFidgetR(fidgetRp)
-				.withAvgFidget(fidgetAvg).withTotalFixations(actualNumFixations).withBlinks(blinks).build();
+				.withAvgSaccadeSpeed(avgSaccadeSpeed).withAvgSmoothSpeed(avgSmoothTrackingSpeed).withFidgetL(fidgetLp)
+				.withFidgetR(fidgetRp).withAvgFidget(fidgetAvg).withTotalFixations(actualNumFixations)
+				.withBlinks(blinks).build();
 
 		return cGp;
 	}

@@ -3,8 +3,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<StackPane fx:id="mParentPane" prefHeight="475.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.65" xmlns:fx="http://javafx.com/fxml/1"
-	fx:controller="tet.TETMainController">
+<StackPane fx:id="mParentPane" prefHeight="475.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.65"
+	xmlns:fx="http://javafx.com/fxml/1" fx:controller="tet.TETMainController">
 	<HBox>
 		<children>
 			<BorderPane fx:id="mTxtAreaBorderPane" prefHeight="400.0" prefWidth="400.0">
@@ -109,6 +109,13 @@
 
 				<Label text="Concentration Quotient (CT): " GridPane.columnIndex="0" GridPane.rowIndex="15" />
 				<Label fx:id="mConcQuotient" GridPane.columnIndex="1" GridPane.rowIndex="15" />
+
+				<Pane GridPane.columnIndex="0" GridPane.rowIndex="16" styleClass="off-label">
+					<Label text="Avg smooth tracking speed: " />
+				</Pane>
+				<Pane GridPane.columnIndex="1" GridPane.rowIndex="16" styleClass="off-label">
+					<Label fx:id="mSmoothTrkSpdLbl" />
+				</Pane>
 			</GridPane>
 		</VBox>
 	</HBox>

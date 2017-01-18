@@ -69,7 +69,7 @@ public class TETMainController implements IGazeController {
 	@FXML // output Labels
 	Label mTotalTimeLbl, mActualFixationsLbl, mTimeBetweenFixationsLbl, mAvgFixationLenLbl,
 			mPercentTimeFixatedLbl, mBlinksLbl, mFixationsPerMinLbl, mTotalSacDistanceLbl, mTotalSacTimeLbl,
-			mAvgSacSpeedLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient;
+			mAvgSacSpeedLbl, mSmoothTrkSpdLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient;
 
 	@FXML
 	private void initialize() {
@@ -210,6 +210,7 @@ public class TETMainController implements IGazeController {
 		mRFidgetLbl.setText(mDf.format(cGp.getFidgetR()));
 		mBFidgetLbl.setText(mDf.format(cGp.getAvgFidget()));
 		mSmoothTrkDistLbl.setText(mDf.format(cGp.getSmoothDist()));
+		mSmoothTrkSpdLbl.setText(mDf.format(cGp.getAvgSmoothSpeed()));
 		mConcQuotient.setText(mDf.format(concQuotient));
 	}
 

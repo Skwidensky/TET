@@ -13,6 +13,7 @@ public class CalculatedGazePacket {
 	private final double mSmoothDist;
 	private final double mPercentTimeFixated;
 	private final double mAvgSaccadeSpeed;
+	private final double mAvgSmoothSpeed;
 	private final double mFidgetL;
 	private final double mFidgetR;
 	private final double mAvgFidget;
@@ -28,6 +29,7 @@ public class CalculatedGazePacket {
 		private double mSmoothDist = 0;
 		private double mPercentTimeFixated = 0;
 		private double mAvgSaccadeSpeed = 0;
+		private double mAvgSmoothSpeed = 0;
 		private double mFidgetL = 0;
 		private double mFidgetR = 0;
 		private double mAvgFidget = 0;
@@ -85,6 +87,11 @@ public class CalculatedGazePacket {
 			return this;
 		}
 		
+		public CalculatedGazeDataBldr withAvgSmoothSpeed(double pSmoothSpeed) {
+			mAvgSmoothSpeed = Objects.requireNonNull(pSmoothSpeed);
+			return this;
+		}
+		
 		public CalculatedGazeDataBldr withFidgetL(double pFidgetL) {
 			mFidgetL = Objects.requireNonNull(pFidgetL);
 			return this;
@@ -124,6 +131,7 @@ public class CalculatedGazePacket {
 		mSmoothDist = pBldr.mSmoothDist;
 		mPercentTimeFixated = pBldr.mPercentTimeFixated;
 		mAvgSaccadeSpeed = pBldr.mAvgSaccadeSpeed;
+		mAvgSmoothSpeed = pBldr.mAvgSmoothSpeed;
 		mFidgetL = pBldr.mFidgetL;
 		mFidgetR = pBldr.mFidgetR;
 		mAvgFidget = pBldr.mAvgFidget;
@@ -157,6 +165,10 @@ public class CalculatedGazePacket {
 
 	public double getAvgSaccadeSpeed() {
 		return mAvgSaccadeSpeed;
+	}
+	
+	public double getAvgSmoothSpeed() {
+		return mAvgSmoothSpeed;
 	}
 
 	public double getFidgetL() {

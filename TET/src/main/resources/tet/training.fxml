@@ -3,6 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
+<?import javafx.scene.control.TextField?>
 
 <BorderPane fx:id="mParentPane" prefHeight="475.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.65"
 	xmlns:fx="http://javafx.com/fxml/1" fx:controller="tet.weka.TrainingDialogController">
@@ -16,6 +17,10 @@
 	</center>
 	<bottom>
 		<HBox spacing="5">
+			<Label text="Table name: " />
+			<TextField fx:id="mSqlTableName" />
+			<Label text="Participant name: " />
+			<TextField fx:id="mName" />
 			<Button text="Start" onAction="#start" />
 			<Button text="Stop" onAction="#stop" />
 			<Button text="Done" onAction="#done" />
