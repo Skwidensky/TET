@@ -21,9 +21,9 @@
 			<TextField fx:id="mSqlTableName" />
 			<Label text="Participant name: " />
 			<TextField fx:id="mName" />
-			<Button text="Start" onAction="#start" />
-			<Button text="Stop" onAction="#stop" />
-			<Button text="Done" onAction="#done" />
+			<Button fx:id="mStartBtn" text="Start" onAction="#start" />
+			<Button fx:id="mStopBtn" text="Stop" onAction="#stop" />
+			<Button fx:id="mDoneBtn" text="Done" onAction="#done" />
 		</HBox>
 	</bottom>
 </BorderPane>

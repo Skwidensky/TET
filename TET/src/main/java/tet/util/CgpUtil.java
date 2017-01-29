@@ -1,6 +1,8 @@
 package tet.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import tet.CalculatedGazePacket;
 import tet.RawGazePacket;
@@ -13,7 +15,11 @@ import tet.CalculatedGazePacket.CalculatedGazeDataBldr;
  *
  */
 public class CgpUtil {
+
+	private static double mInterval;
+
 	public static CalculatedGazePacket getCgpFor(ArrayList<RawGazePacket> pRgps, double pInterval) {
+		mInterval = pInterval;
 		ArrayList<Double> betweenFixations = new ArrayList<>();
 		ArrayList<Double> fixationLengths = new ArrayList<>();
 
@@ -28,6 +34,7 @@ public class CgpUtil {
 				fixationLength = 0, totalSaccadeTime = 0, totalSmoothTrackingTime = 0, totalSaccadeDistance = 0,
 				totalSmoothTrackDistance = 0, avgSaccadeSpeed = 0, avgSmoothTrackingSpeed = 0, fidgetLp = 0,
 				fidgetRp = 0, fidgetAvg = 0, x1 = 0, x2 = 0, y1 = 0, y2 = 0, lP1 = 0, lP2 = 0, rP1 = 0, rP2 = 0;
+		double avgPeakSaccadeAccel = getAvgPeakAcceleration(getAllSaccades(pRgps));
 
 		int index = 0;
 		int blinks = countBlinks(pRgps);
@@ -84,8 +91,8 @@ public class CgpUtil {
 						 * every-so-slightly. After multiple observations I
 						 * found that the average "shudder" was between 1 and
 						 * 1.41 pixels. Therefore, this conditional is meant to
-						 * mitigate that from the actual distance traversed in
-						 * smooth tracking.
+						 * mitigate the effect of that on the actual distance
+						 * traversed in smooth tracking.
 						 */
 						totalSmoothTrackDistance += distance;
 					}
@@ -148,9 +155,9 @@ public class CgpUtil {
 		CalculatedGazePacket cGp = new CalculatedGazeDataBldr().withTotalTime(totalTime).withFixationsPerMin(FPM)
 				.withTimeBtwnFixations(avgTimeBetweenFixations).withAvgFixationLength(avgFixationLength)
 				.withSmoothDist(totalSmoothTrackDistance).withPercentTimeFixated(percentTimeFixated)
-				.withAvgSaccadeSpeed(avgSaccadeSpeed).withAvgSmoothSpeed(avgSmoothTrackingSpeed).withFidgetL(fidgetLp)
-				.withFidgetR(fidgetRp).withAvgFidget(fidgetAvg).withTotalFixations(actualNumFixations)
-				.withBlinks(blinks).build();
+				.withAvgSaccadeSpeed(avgSaccadeSpeed).withAvgPeakSaccadeAccel(avgPeakSaccadeAccel)
+				.withAvgSmoothSpeed(avgSmoothTrackingSpeed).withFidgetL(fidgetLp).withFidgetR(fidgetRp)
+				.withAvgFidget(fidgetAvg).withTotalFixations(actualNumFixations).withBlinks(blinks).build();
 
 		return cGp;
 	}
@@ -237,4 +244,98 @@ public class CgpUtil {
 		}
 		return actualNumberOfFixations;
 	}
+
+	/**
+	 * acceleration = (delta-v / time)
+	 * 
+	 * @param pSaccadeList
+	 *            -- list of lists containing each saccadic instance in the
+	 *            session
+	 * @return the average acceleration of the subject's saccadic movement in
+	 *         (pixels/s^2)
+	 */
+	private static double getAvgPeakAcceleration(ArrayList<ArrayList<RawGazePacket>> pSaccadeList) {
+		ArrayList<Double> peaks = new ArrayList<>();
+		for (ArrayList<RawGazePacket> saccade : pSaccadeList) {
+			int idx = 0;
+			double acc = 0, v1 = 0, v2 = 0, x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+			for (RawGazePacket rgp : saccade) {
+				x1 = rgp.getGazeX();
+				y1 = rgp.getGazeY();
+				if (idx != 0) {
+					// Gaze (x1,y1) (x2,y2) delta
+					double distance = Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+					// final velocity -- distance / time
+					v2 = (distance / mInterval) / 1000;
+					double tmpAcc = Math.abs((v2 - v1) / mInterval);
+					// if this acceleration was greater than the previous one,
+					// it is the new peak
+					if (tmpAcc > acc) {
+						acc = tmpAcc;
+					}
+				}
+
+				// initial velocity
+				v1 = v2;
+
+				x2 = x1;
+				y2 = y1;
+				idx++;
+			}
+			peaks.add(acc);
+		}
+		// return the average peak acceleration for a saccade
+		return peaks.stream().mapToDouble(a -> a).average().getAsDouble();
+	}
+
+	/**
+	 * Extract only saccadic movement -- for use in calculated average
+	 * acceleration I count 10 consecutive "false" fixation booleans a saccade,
+	 * so long as there are no empty values in the series (i.e. x = 0, y = 0)
+	 * Also, TET's saccade calculations include a latency period after the
+	 * saccade has taken place and before the sensor recognizes that you're
+	 * fixated again. This short buffer between actual saccadic movement and the
+	 * next fixation is a sort of "settling in" period that should be ignored.
+	 * It normally accounts for 50% of a saccade's non-fixated time, so just
+	 * chop off that 50%.
+	 * 
+	 * @param pRgpList
+	 *            the full list of raw gaze data
+	 * @return a list of lists -- each inner list is a saccade
+	 */
+	private static ArrayList<ArrayList<RawGazePacket>> getAllSaccades(ArrayList<RawGazePacket> pRgpList) {
+		boolean validSeries = true;
+		ArrayList<ArrayList<RawGazePacket>> saccadeInstances = new ArrayList<>();
+		ArrayList<RawGazePacket> singleSaccade = new ArrayList<>();
+
+		// collect all non-fixated series as ArrayLists
+		for (RawGazePacket rgp : pRgpList) {
+			if (!rgp.isFixated()) {
+				singleSaccade.add(rgp);
+			} else {
+				int seriesSize = singleSaccade.size();
+				// if there are more than 15 instances in this series
+				if (seriesSize > 15) {
+					// and there are no invalid packets in this series
+					for (RawGazePacket rgp2 : singleSaccade) {
+						if (rgp2.getGazeX() == 0.0 && rgp2.getGazeY() == 0.0) {
+							validSeries = false;
+						}
+					}
+					// prune the "settling in" instances and keep the series
+					if (validSeries) {
+						for (int i = seriesSize - 1; i > seriesSize / 2; i--) {
+							singleSaccade.remove(i);
+						}
+						saccadeInstances.add(new ArrayList<>(singleSaccade));
+					}
+					validSeries = true;
+				}
+				// clear the series for the next go 'round
+				singleSaccade.clear();
+			}
+		}
+		return saccadeInstances;
+	}
+
 }

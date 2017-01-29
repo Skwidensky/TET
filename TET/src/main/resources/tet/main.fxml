@@ -116,6 +116,9 @@
 				<Pane GridPane.columnIndex="1" GridPane.rowIndex="16" styleClass="off-label">
 					<Label fx:id="mSmoothTrkSpdLbl" />
 				</Pane>
+				
+				<Label text="Average Peak Saccade Acceleration: " GridPane.columnIndex="0" GridPane.rowIndex="17" />
+				<Label fx:id="mAvgSacAccelLbl" GridPane.columnIndex="1" GridPane.rowIndex="17" />
 			</GridPane>
 		</VBox>
 	</HBox>

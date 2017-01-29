@@ -53,8 +53,6 @@ public class TETMainController implements IGazeController {
 	private double mInterval, mSampleRt;
 	private TextArea mTextOutputArea;
 
-	// Generic formatter
-	DecimalFormat mGf = new DecimalFormat("#");
 	// Number formatter
 	final DecimalFormat mDf = new DecimalFormat("#.####");
 
@@ -69,7 +67,7 @@ public class TETMainController implements IGazeController {
 	@FXML // output Labels
 	Label mTotalTimeLbl, mActualFixationsLbl, mTimeBetweenFixationsLbl, mAvgFixationLenLbl,
 			mPercentTimeFixatedLbl, mBlinksLbl, mFixationsPerMinLbl, mTotalSacDistanceLbl, mTotalSacTimeLbl,
-			mAvgSacSpeedLbl, mSmoothTrkSpdLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient;
+			mAvgSacSpeedLbl, mSmoothTrkSpdLbl, mLFidgetLbl, mRFidgetLbl, mBFidgetLbl, mSmoothTrkDistLbl, mConcQuotient, mAvgSacAccelLbl;
 
 	@FXML
 	private void initialize() {
@@ -176,14 +174,7 @@ public class TETMainController implements IGazeController {
 
 	/* Add >Calculated< Gaze Data to the list */
 	private void addTheGoodStuff(CalculatedGazePacket pCgp) {
-		Joiner joiner = Joiner.on(",");
-
-		mTheGoodStuff.add(joiner.join(
-				Arrays.asList(pCgp.getTotalTime(), mDf.format(pCgp.getFixationsPerMin()), pCgp.getTotalFixations(),
-						mDf.format(pCgp.getTimeBetweenFixations()), mDf.format(pCgp.getFixationLength()),
-						mDf.format(pCgp.getSmoothDist()), mDf.format(pCgp.getPercentTimeFixated()),
-						mDf.format(pCgp.getAvgSaccadeSpeed()), mDf.format(pCgp.getFidgetL()),
-						mDf.format(pCgp.getFidgetR()), mDf.format(pCgp.getAvgFidget()), pCgp.getBlinks())));
+		mTheGoodStuff.add(pCgp.getFormattedInstance());
 	}
 
 	/********************************************
@@ -212,6 +203,7 @@ public class TETMainController implements IGazeController {
 		mSmoothTrkDistLbl.setText(mDf.format(cGp.getSmoothDist()));
 		mSmoothTrkSpdLbl.setText(mDf.format(cGp.getAvgSmoothSpeed()));
 		mConcQuotient.setText(mDf.format(concQuotient));
+		mAvgSacAccelLbl.setText(mDf.format(cGp.getAvgSaccadeAccel()));
 	}
 
 	/**
@@ -222,17 +214,7 @@ public class TETMainController implements IGazeController {
 	 *            device
 	 */
 	public void update(RawGazePacket pRgp) {
-		long timestamp = pRgp.getTimestamp();
-		double gX = pRgp.getGazeX();
-		double gY = pRgp.getGazeY();
-		double pL = pRgp.getPupilL();
-		double pR = pRgp.getPupilR();
-		boolean fixed = pRgp.isFixated();
-
-		// What gets output to the raw file
-		String rawGazing = mGf.format(timestamp) + "," + mGf.format(gX) + "," + mGf.format(gY) + "," + mGf.format(pL)
-				+ "," + mGf.format(pR) + "," + fixed;
-		addRawGazeData(rawGazing);
+		addRawGazeData(pRgp.getFormattedInstance());
 	}
 	
 	public static TETMainController getInstance() {
