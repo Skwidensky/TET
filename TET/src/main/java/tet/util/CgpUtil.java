@@ -18,6 +18,12 @@ public class CgpUtil {
 
 	private static double mInterval;
 
+	/********************************************
+	 * LOOKING FOR HOW A DATA POINT WAS CALCULATED? <br>
+	 * YOU'LL FIND IT IN THIS METHOD, I BETCHA
+	 * pRgps - a list of RawGazePackets
+	 * pInterval - the collection rate (in seconds) -> 1 / SAMPLE_RATE
+	 *******************************************/
 	public static CalculatedGazePacket getCgpFor(ArrayList<RawGazePacket> pRgps, double pInterval) {
 		mInterval = pInterval;
 		ArrayList<Double> betweenFixations = new ArrayList<>();
@@ -26,7 +32,7 @@ public class CgpUtil {
 		/*
 		 * Because a session could be broken up into different chunks of time
 		 * (Start-Stop-Start), getting the total time via (Tn - T0) won't be
-		 * accurate. Loop the whole thing and tally up the time. If a delta-t is
+		 * accurate. Loop the whole thing and tally up the time. If a delta-T is
 		 * greater than our interval, just set it to the interval
 		 */
 		long t1 = 0, t2 = 0;
@@ -40,6 +46,7 @@ public class CgpUtil {
 		int blinks = countBlinks(pRgps);
 		int totalCycles = pRgps.size();
 
+		/* Where the magic happens. Loop the entire list of RawGazePackets and do some math. */
 		for (RawGazePacket rgp : pRgps) {
 			if (index == 0) {
 				t1 = rgp.getTimestamp();
@@ -80,6 +87,7 @@ public class CgpUtil {
 					// Gaze (x1,y1) (x2,y2) delta
 					distance = Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
 				}
+				
 				if (fixated) {
 					totalFixations++;
 					// Smooth tracking distance
@@ -263,7 +271,7 @@ public class CgpUtil {
 				x1 = rgp.getGazeX();
 				y1 = rgp.getGazeY();
 				if (idx != 0) {
-					// Gaze (x1,y1) (x2,y2) delta
+					// gaze (x1,y1) (x2,y2) delta
 					double distance = Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
 					// final velocity -- distance / time
 					v2 = (distance / mInterval) / 1000;
@@ -275,9 +283,9 @@ public class CgpUtil {
 					}
 				}
 
-				// initial velocity
+				// initial velocity rebase
 				v1 = v2;
-
+				// initial gaze point rebase
 				x2 = x1;
 				y2 = y1;
 				idx++;
@@ -296,7 +304,7 @@ public class CgpUtil {
 	 * saccade has taken place and before the sensor recognizes that you're
 	 * fixated again. This short buffer between actual saccadic movement and the
 	 * next fixation is a sort of "settling in" period that should be ignored.
-	 * It normally accounts for 50% of a saccade's non-fixated time, so just
+	 * It normally accounts for the last 50% of a saccade's non-fixated time, so just
 	 * chop off that 50%.
 	 * 
 	 * @param pRgpList
@@ -322,7 +330,7 @@ public class CgpUtil {
 							validSeries = false;
 						}
 					}
-					// prune the "settling in" instances and keep the series
+					// prune the 50% "settling in" instances and keep the series
 					if (validSeries) {
 						for (int i = seriesSize - 1; i > seriesSize / 2; i--) {
 							singleSaccade.remove(i);

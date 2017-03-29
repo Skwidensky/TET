@@ -134,6 +134,7 @@ public class TETMainController implements IGazeController {
 	/* Add a row of >Raw< Gaze Data to the list */
 	private void addRawGazeData(String pGazeData) {
 		mRawStringOutput.add(pGazeData);
+		// save memory by dumping batches of 300 RGPs to database
 		if (mRawStringOutput.size() > 300) {
 			dumpRawGazeData();
 		}
@@ -177,10 +178,7 @@ public class TETMainController implements IGazeController {
 		mTheGoodStuff.add(pCgp.getFormattedInstance());
 	}
 
-	/********************************************
-	 * LOOKING FOR HOW A DATA POINT WAS CALCULATED? <br>
-	 * YOU'LL FIND IT IN THIS METHOD, I BETCHA
-	 *******************************************/
+	/* Take the current session's raw data and calculate CGP data points */
 	public void calculateTheGoodStuff() {
 		ArrayList<RawGazePacket> rgps = getThisTestsRgpsFromStrings();
 		CalculatedGazePacket cGp = CgpUtil.getCgpFor(rgps, mInterval);

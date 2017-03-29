@@ -5,6 +5,11 @@ import java.util.Objects;
 
 import com.google.common.base.Joiner;
 
+/**
+ * An immutable data structure to hold an instance of gaze data which has been calculated
+ * @author Charles
+ *
+ */
 public class CalculatedGazePacket {
 
 	public static CalculatedGazePacket EMPTY_PACKET = new CalculatedGazeDataBldr().build();

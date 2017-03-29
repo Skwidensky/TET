@@ -6,6 +6,14 @@ import java.util.Random;
 
 import com.google.common.base.Joiner;
 
+/**
+ * A data structure which consists of all the variables accessible through TET's
+ * eye-tracking API -- available at 30Hz or 60Hz
+ * Each of these packets represents and single Hz collection cycle from the device
+ * 
+ * @author Charles
+ *
+ */
 public class RawGazePacket {
 
 	public static RawGazePacket EMPTY_PACKET = new RawGazeDataBldr().build();
@@ -91,30 +99,51 @@ public class RawGazePacket {
 		mIsFixated = pBldr.mIsFixated;
 	}
 
+	/**
+	 * @return this cycle's timestamp
+	 */
 	public long getTimestamp() {
 		return mTimestamp;
 	}
 
+	/**
+	 * @return this cycle's X gaze coordinate
+	 */
 	public double getGazeX() {
 		return mGazeX;
 	}
 
+	/**
+	 * @return this cycle's Y gaze coordinate
+	 */
 	public double getGazeY() {
 		return mGazeY;
 	}
 
+	/**
+	 * @return this cycle's left pupil size
+	 */
 	public double getPupilL() {
 		return mPupilL;
 	}
 
+	/**
+	 * @return this cycle's right pupil size
+	 */
 	public double getPupilR() {
 		return mPupilR;
 	}
 
+	/**
+	 * @return !IMPORTANT! whether or not the user was fixated during this cycle
+	 */
 	public boolean isFixated() {
 		return mIsFixated;
 	}
 
+	/**
+	 * @return a comma delimited string of this packet's variables
+	 */
 	public String getFormattedInstance() {
 		DecimalFormat df = new DecimalFormat("#");
 		Joiner joiner = Joiner.on(",");
